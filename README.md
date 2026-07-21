@@ -8,7 +8,7 @@
 [the-nba-schedule.netlify.app](https://the-nba-schedule.netlify.app)
 
 A React + Vite web app showing every game of the NBA season in **your** timezone —
-with live scores, where to watch on your streaming services, league-wide standings, the
+with live scores, where to watch on your streaming services, conference standings, the
 playoff bracket, and league leaders.
 
 No backend, no API keys, no tracking. The whole app is a static bundle plus a committed
@@ -22,10 +22,10 @@ snapshot of the season.
 |---|---|
 | 📋 **Schedule** | Every game grouped by the calendar day *you* see, opening on today — previous days are hidden behind a toggle. Filter by team or by the teams you follow. |
 | 📆 **Week** | A Sun–Sat grid you can page through, collapsing to a two-column agenda on a phone. |
-| 📊 **Regular Season** | League seeding with the playoff cutline, or conference tables. W/L, PCT, GB, home/road splits, last-10, streak, net rating. |
-| 🏆 **Playoffs** | The bracket, where each slot is a best-of series. Projected from current standings until the real field is set. |
-| 🎯 **Radial** | The same bracket as concentric rings — seeds outside, the title in the middle. |
-| 📈 **Stats** | Season totals, league leaders across 8 categories, scoring margin, and the playoff race with magic numbers. |
+| 📊 **Regular Season** | Both conference tables side by side, with the playoff cut and the play-in band marked. W/L, PCT, GB, home/road splits, last-10, streak, net rating. |
+| 🏆 **Playoffs** | Two conference brackets (East and West) into the Finals, where each slot is a best-of-seven series. Projected from current seeding until the real field is set. |
+| 🎯 **Radial** | The same brackets as concentric rings — one wheel per conference, seeds outside and the conference champion in the middle — flanking the Finals. |
+| 📈 **Stats** | Season averages, league leaders across 8 categories, scoring margin, and the playoff race — by conference — with magic numbers. |
 
 **Star a team** from any game card, standings row, or team panel to highlight it
 across every view, filter the schedule to "My teams", and scope live alerts to it.
@@ -33,8 +33,9 @@ Clicking any team opens a **team panel** — splits, form, leading scorers, and 
 next. Each game card also flags **where to watch** — a 📺 badge naming the streaming
 services that carry it (YouTube TV, Prime Video, Peacock). Plus: light/dark themes,
 spoiler-free mode, shareable URLs, live alerts for notable moments, a game-detail modal
-with a quarter line score and season series, `.ics` calendar export (whole season or one
-team's), and installable-PWA support.
+with a quarter line score, starting lineups, and season series, an auto-updating
+`webcal://` **calendar subscription** (plus one-time `.ics` download, whole season or your
+teams), and installable-PWA support.
 
 ## Data
 
@@ -52,39 +53,47 @@ regenerates the data, runs the test suite against it, and opens a PR. Standings 
 *derived* from the committed scores, so a bad refresh surfaces as a failing test rather
 than a quietly wrong table.
 
+> **NBA seasons span two calendar years, and ESPN keys them by the *ending* year.**
+> `--season 2026` is the **2025-26** season; `--season 2027` is 2026-27. The committed
+> data is the most recent complete season; swap seasons with a single
+> `npm run fetch:schedule -- --season <year>`.
+
 ### Three feed quirks worth knowing
 
 These are the difference between "looks about right" and matching the official
 standings exactly:
 
-1. **The Commissioner's Cup Championship is not a regular-season game.** It appears in
-   the schedule feed like any other, but doesn't count toward the standings. It's
-   reclassified as `seasonType: 'cup'` and excluded.
+1. **The NBA Cup championship is not a regular-season game.** The In-Season Tournament's
+   group and knockout games all count toward the standings — *except* the championship,
+   which is an 83rd game for the two finalists. It appears in the schedule feed like any
+   other but is reclassified as `seasonType: 'cup'` and excluded. (Careful: the knockout
+   round names "Quarterfinals"/"Semifinals" contain the substring "final", so only a
+   headline containing "championship" is reclassified.)
 2. **A postponed game appears twice** — the original slot *and* its makeup date, both
    live in the feed. The dead one is flagged and skipped.
 3. **Broadcast data has two shapes.** The team-schedule feed uses `media.shortName`;
    the scoreboard uses `names[]`. Both are accepted.
 
 With those handled, derived W-L, home/road splits, last-10, and streaks match ESPN's
-published standings exactly for all 15 teams.
+published standings exactly for all 30 teams.
 
 ### Scoring frequency: why there are no per-basket events
 
 The biggest structural difference from a soccer viewer. Goals are rare enough to
-enumerate as events — scorer, minute, penalty — and a Golden Boot table can be *derived*
-from them. Basketball can't work that way: ~65 scoring plays per game, ~20,000 per
-season.
+enumerate as events — scorer, minute, penalty — and a scoring table can be *derived*
+from them. Basketball can't work that way: ~50 scoring plays per game, tens of thousands
+across an 82-game, 1,230-game season.
 
 So the model inverts. Games store a final score, and player leaderboards come from
 **pre-aggregated season stat lines** rather than being summed from events. Two things
 fill the gap that losing the event stream would otherwise leave:
 
-- **Quarter line scores** are the analogue of a goal timeline. A final score of 98–93
+- **Quarter line scores** are the analogue of a goal timeline. A final score of 112–104
   hides whether a team led by 20 or trailed all night; the quarter breakdown shows it,
   with the higher scorer of each quarter marked. Committed for every played game, and
   every one is asserted to sum to its final score.
 - **Per-game leaders** (points/rebounds/assists) answer "who did it" without an event
-  list.
+  list. The game detail also fetches the **starting lineups** on demand.
 
 Frequency also changes the *live* display. A soccer app can show a goal the moment it
 lands and be right for the next ten minutes; a basketball score is stale within seconds.
@@ -92,7 +101,7 @@ So the live badge shows the **period** (`Q3`, `HALF`, `OT`) rather than a runnin
 clock, which would imply a precision a 30-second poll can't deliver. The exact feed
 status stays in the tooltip.
 
-And it rules out goal-style alerts. One notification per basket would fire ~65 times a
+And it rules out goal-style alerts. One notification per basket would fire ~50 times a
 game. The 🔔 toggle instead surfaces the moments that change how a game *feels* —
 tipoff, a lead change, a one-possession fourth quarter, and the final — detected by
 diffing poll snapshots, so no play-by-play feed is needed. A close fourth quarter
@@ -102,11 +111,19 @@ rather than three.
 
 ### Format notes
 
-The NBA is not a group-stage tournament, and two details drive most of the app's logic:
+The NBA is conference-based, and a few details drive most of the app's playoff logic:
 
-- **Seeding is league-wide 1–8, not by conference.** Conference is presentational.
-- **A playoff slot is a series, not a game** — best-of-3, then best-of-5, then
-  best-of-7 — and the bracket is *fixed*: semifinal pairings don't re-seed.
+- **Seeding is per conference.** Each conference (East, West) seeds its own field; the
+  top 8 make the playoffs. Two seeding tiebreakers depend on divisions, so all six
+  divisions are modelled even though the standings display groups by conference.
+- **Tiebreakers follow the NBA order:** winning percentage, then head-to-head, then a
+  division leader over a non-leader, then division record, then conference record, then
+  point differential. (The circular "record vs playoff teams" steps fall through to
+  point differential — the deterministic tail.)
+- **Seeds 7–10 play a play-in** to settle the 7 and 8 seeds; 1–6 are set outright.
+- **A playoff slot is a series, not a game** — best-of-seven every round — and the
+  bracket is *fixed by seed*: 1v8/4v5/2v7/3v6, no re-seeding. The two conference
+  champions meet in the Finals.
 
 ## Develop
 
@@ -130,22 +147,26 @@ the data jobs on a bare checkout with no install step. A CI job enforces this.
 The suite leans on real data rather than hand-made fixtures, because real data contains
 the edge cases you wouldn't think to invent.
 
-- **Standings** are checked against the actual 2026 season, and the numbers are
-  independently verifiable against ESPN's published standings.
-- **The bracket** is tested against the complete 2025 postseason
-  (`test/fixtures/playoffs-2025.js`) — 24 games, 7 series — because the 2026 bracket
-  doesn't exist until September. It reproduces the real outcome: Las Vegas over Phoenix
-  4–0. That fixture caught two bugs a synthetic test would have reproduced my own
-  assumptions right past.
-- **Format invariants** that would otherwise depend on this week's results (like
-  "seeding ignores conference") are tested with synthetic data instead, so they don't
-  break when the standings shift.
+- **Standings and tiebreakers** are checked against the committed 2025-26 season — the
+  per-conference seeds are independently verifiable against ESPN's published standings.
+- **The bracket** is tested against the committed 2025-26 postseason, reproducing the
+  real two-conference outcome all the way to the Finals, plus a compact synthetic
+  best-of-seven fixture (`test/fixtures/postseason.js`) for the series engine. Series are
+  located by their play-in-immune higher seed, so a lower seed that advanced through the
+  play-in (a 7-over-2 upset) still slots correctly.
+- **Format invariants** that would otherwise depend on this week's results (like the
+  tiebreaker order, or per-conference seeding) are tested with synthetic data that
+  equalises everything above the step under test, so they don't break when standings
+  shift.
 
-One gap the suite structurally cannot close: the live overlay's field mapping was
-inferred from completed and scheduled games, and the tests mock ESPN using the same
-inferences — so they agree with the assumption by construction. `npm run verify:live`,
-run while a game is actually in progress, is the only check that compares those
-assumptions to reality.
+Two things the suite structurally cannot close on committed data:
+
+- The committed season is *complete*, so the "live overlay" tests assert the idle
+  (season-over) path; a mid-season snapshot would re-assert active polling.
+- The live overlay's field mapping was inferred from completed and scheduled games, and
+  the tests mock ESPN using the same inferences — so they agree by construction.
+  `npm run verify:live`, run while a game is actually in progress, is the only check that
+  compares those assumptions to reality.
 
 ## Deploy
 
@@ -157,7 +178,8 @@ a subpath (GitHub Pages `/nba-schedule/`) with no separate build.
 - **Netlify** deploys from the same workflow, but only once `NETLIFY_AUTH_TOKEN` is set
   as a repository secret (`NETLIFY_SITE_ID` is already stored as a repo variable). Until
   then that step is skipped and Netlify can be updated with
-  `npx netlify-cli deploy --prod --dir dist`.
+  `npx netlify-cli deploy --prod --dir dist`. The `webcal://` calendar feed is a Netlify
+  function, so it only resolves on the Netlify host.
 
 ## Credits
 
