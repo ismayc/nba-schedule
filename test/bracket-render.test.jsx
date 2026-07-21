@@ -44,6 +44,26 @@ describe('Bracket with a completed postseason', () => {
     render(<Bracket games={GAMES} tz={TZ} />)
     expect(screen.queryByText(/Projected/)).not.toBeInTheDocument()
   })
+
+  it('footnotes the NBA Cup result without making it a bracket', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    const cup = container.querySelector('.bx-cup')
+    // 2025-26: New York beat San Antonio 124–113 in Las Vegas.
+    expect(cup).toHaveTextContent(/NBA Cup — Knicks beat Spurs 124–113/)
+    expect(cup).toHaveTextContent(/not counted in the standings/)
+  })
+
+  it('previews an unplayed NBA Cup final as a matchup', () => {
+    const noScore = GAMES.map((g) => (g.seasonType === 'cup' ? { ...g, score: null } : g))
+    const { container } = render(<Bracket games={noScore} tz={TZ} />)
+    expect(container.querySelector('.bx-cup')).toHaveTextContent(/NBA Cup final — Spurs @ Knicks/)
+  })
+
+  it('shows no cup footnote when the season has no cup game', () => {
+    const without = GAMES.filter((g) => g.seasonType !== 'cup')
+    const { container } = render(<Bracket games={without} tz={TZ} />)
+    expect(container.querySelector('.bx-cup')).toBeNull()
+  })
 })
 
 describe('Bracket before the postseason', () => {

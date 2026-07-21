@@ -176,6 +176,11 @@ export default function Bracket({ games, tz, onPick }) {
   const { conferences, final, champion, projected, playIn } = bracket
   const isMobile = useMediaQuery('(max-width: 720px)')
 
+  // The season's other title game. Deliberately a footnote, not a bracket: it's a
+  // single exhibition final that counts for nothing in the standings (the reason
+  // utils/standings excludes seasonType 'cup').
+  const cup = useMemo(() => games.find((g) => g.seasonType === 'cup'), [games])
+
   // Rounds in bracket order, each carrying both conferences' series — the source for the
   // mobile one-round-at-a-time view.
   const rounds = useMemo(
@@ -259,6 +264,29 @@ export default function Bracket({ games, tz, onPick }) {
             ))}
           </div>
         </div>
+      )}
+
+      {cup && (
+        <p className="bx-cup">
+          🏆 NBA Cup{' '}
+          {cup.score ? (
+            <>
+              — <strong>{TEAM_BY_ABBR[cup.score[0] > cup.score[1] ? cup.home : cup.away]?.name}</strong>{' '}
+              beat {TEAM_BY_ABBR[cup.score[0] > cup.score[1] ? cup.away : cup.home]?.name}{' '}
+              {Math.max(...cup.score)}–{Math.min(...cup.score)}
+            </>
+          ) : (
+            <>
+              final — {TEAM_BY_ABBR[cup.away]?.name} @ {TEAM_BY_ABBR[cup.home]?.name}
+            </>
+          )}
+          <span className="dim">
+            {' '}
+            · {formatDate(cup.tip, tz)}
+            {cup.city ? ` · ${cup.city}` : ''} · separate trophy, not counted in the
+            standings
+          </span>
+        </p>
       )}
     </section>
   )

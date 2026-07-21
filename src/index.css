@@ -1258,6 +1258,17 @@ select:hover,
   font-size: 15px;
 }
 
+/* The NBA Cup footnote under the bracket — deliberately quiet: it's the season's
+   other title game, but an exhibition that counts for nothing in the standings. */
+.bx-cup {
+  margin-top: 18px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+.bx-cup strong {
+  color: var(--text);
+}
+
 /* Two conference fans flanking the Finals. Scrolls inside itself on narrow screens
    rather than pushing the page wide. */
 .bx {
