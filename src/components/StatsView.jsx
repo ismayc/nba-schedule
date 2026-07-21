@@ -1,10 +1,13 @@
 import { Fragment, useMemo, useState } from 'react'
 import { seasonTotals, teamScoring, leaderboard, LEADER_CATEGORIES } from '../utils/stats.js'
-import { playoffRace, PLAYOFF_SPOTS, CONFERENCES } from '../utils/standings.js'
+import { playoffRace, PLAYIN_SEEDS, CONFERENCES } from '../utils/standings.js'
 import { formatDate } from '../utils/time.js'
 import TeamLogo from './TeamLogo.jsx'
 
 const one = (n) => n.toFixed(1)
+
+// The play-in field is the top 10 of each conference; 10 is the elimination line.
+const PLAYIN_CUT = PLAYIN_SEEDS[PLAYIN_SEEDS.length - 1]
 
 // ── 1. Season totals ─────────────────────────────────────────────────────────
 // Single headline numbers, so these are stat tiles rather than a chart. The two
@@ -203,13 +206,17 @@ const STATUS = {
   clinched: { icon: '✓', word: 'Clinched', cls: 'st-good' },
   eliminated: { icon: '✕', word: 'Eliminated', cls: 'st-out' },
   in: { icon: '●', word: 'In the field', cls: 'st-in' },
+  playin: { icon: '◐', word: 'Play-in', cls: 'st-play' },
   chasing: { icon: '○', word: 'Chasing', cls: 'st-chase' },
 }
 
 function statusOf(row) {
-  if (row.clinched) return STATUS.clinched
   if (row.eliminated) return STATUS.eliminated
-  return row.inPlayoffs ? STATUS.in : STATUS.chasing
+  // Seeds 1–6 own a first-round series (a locked one reads as clinched); 7–10 are the
+  // play-in field; anyone else is still chasing a top-10 spot.
+  if (row.seed <= 6) return row.clinched ? STATUS.clinched : STATUS.in
+  if (row.playIn) return STATUS.playin
+  return STATUS.chasing
 }
 
 function ConfRace({ rows, cut, onPickTeam }) {
@@ -246,7 +253,7 @@ function ConfRace({ rows, cut, onPickTeam }) {
                   <td className="num dim">{r.remaining}</td>
                   <td className="num">{r.magic ?? <span className="dim">—</span>}</td>
                   <td className="num dim hide-sm">
-                    {r.inPlayoffs ? '—' : one(Math.abs(r.gbCut))}
+                    {r.seed <= PLAYIN_CUT ? '—' : one(Math.abs(r.gbCut))}
                   </td>
                   <td>
                     <span className={`status ${st.cls}`}>
@@ -254,12 +261,19 @@ function ConfRace({ rows, cut, onPickTeam }) {
                     </span>
                   </td>
                 </tr>
-                {r.seed === PLAYOFF_SPOTS && (
+                {r.seed === 6 && (
+                  <tr className="cutline">
+                    <td colSpan={7}>
+                      <span>Seeds 1–6 clinch a series · play-in below</span>
+                    </td>
+                  </tr>
+                )}
+                {r.seed === PLAYIN_CUT && (
                   <tr className="cutline">
                     <td colSpan={7}>
                       <span>
-                        Playoff cut — top {PLAYOFF_SPOTS}
-                        {cut && ` · sits at ${cut.w}–${cut.l} (${cut.team.name})`}
+                        Play-in cut — seeds 7–10 play in
+                        {cut && ` · 10th sits at ${cut.w}–${cut.l} (${cut.team.name})`}
                       </span>
                     </td>
                   </tr>
@@ -295,7 +309,7 @@ function PlayoffRace({ games, onPickTeam }) {
           <h4 className="md-sub">{label}</h4>
           <ConfRace
             rows={byConf[key]}
-            cut={byConf[key][PLAYOFF_SPOTS - 1]}
+            cut={byConf[key][PLAYIN_CUT - 1]}
             onPickTeam={onPickTeam}
           />
         </Fragment>

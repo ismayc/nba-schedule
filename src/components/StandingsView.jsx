@@ -1,7 +1,10 @@
 import { Fragment, useMemo } from 'react'
-import { conferenceStandings, CONFERENCES, PLAYOFF_SPOTS } from '../utils/standings.js'
+import { conferenceStandings, CONFERENCES, PLAYIN_SEEDS } from '../utils/standings.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
+
+// The last play-in seed (10) — the elimination line: 11th and below are out.
+const PLAYIN_CUT = PLAYIN_SEEDS[PLAYIN_SEEDS.length - 1]
 
 const pct = (n) => n.toFixed(3).replace(/^0/, '')
 const gbText = (n) => (n === 0 ? '—' : n % 1 ? n.toFixed(1) : String(n))
@@ -82,9 +85,11 @@ function Row({ row, rank, onPick }) {
   )
 }
 
-// The playoff picture is per-conference: seeds 1–6 are locked into the postseason,
-// seeds 7–10 fall into the play-in, and the eight seed is the cut. Two thin banner rows
-// carry that structure without needing colour to explain it.
+// The playoff picture is per-conference: seeds 1–6 clinch a first-round series, seeds
+// 7–10 are the play-in field (four teams for the last two spots), and 11th and below are
+// out. Two thin banner rows — after 6 and after 10 — carry that structure without needing
+// colour to explain it. (The old single "top 8" cut was wrong: it dropped 9–10, which
+// actually play in.)
 function Table({ caption, rows, rankKey, onPick }) {
   return (
     <div className="card">
@@ -117,14 +122,14 @@ function Table({ caption, rows, rankKey, onPick }) {
                   {seed === 6 && (
                     <tr className="cutline">
                       <td colSpan={11}>
-                        <span>Play-in — seeds 7–10</span>
+                        <span>Seeds 1–6 clinch a series · play-in below</span>
                       </td>
                     </tr>
                   )}
-                  {seed === PLAYOFF_SPOTS && (
+                  {seed === PLAYIN_CUT && (
                     <tr className="cutline">
                       <td colSpan={11}>
-                        <span>Playoff cut — top {PLAYOFF_SPOTS} make the postseason</span>
+                        <span>Play-in cut — seeds 7–10 play for the last two spots</span>
                       </td>
                     </tr>
                   )}

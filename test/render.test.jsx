@@ -32,11 +32,12 @@ describe('StandingsView', () => {
     expect(within(eastRows[0]).getByText('Pistons')).toBeInTheDocument()
   })
 
-  it('shows the playoff cutline after the 8th seed and marks the play-in', () => {
+  it('marks the seed-6 series line and the seed-10 play-in cut per conference', () => {
     render(<StandingsView games={GAMES} />)
-    // One banner per conference for each of the two cut lines.
-    expect(screen.getAllByText(/top 8 make the postseason/i)).toHaveLength(2)
-    expect(screen.getAllByText(/Play-in — seeds 7–10/i)).toHaveLength(2)
+    // One banner per conference for each of the two cut lines: seeds 1–6 clinch a
+    // series, and seeds 7–10 are the play-in field (10 is the elimination line, not 8).
+    expect(screen.getAllByText(/Seeds 1–6 clinch a series/i)).toHaveLength(2)
+    expect(screen.getAllByText(/Play-in cut — seeds 7–10/i)).toHaveLength(2)
   })
 
   it('names both conferences', () => {

@@ -244,14 +244,33 @@ async function enrichWithBoxScores(games) {
 // /leaders endpoint returns athletes as $ref links (many extra fetches to resolve
 // names); this one inlines name, team, and position, so the app ships leaderboards
 // with zero runtime requests.
-const STAT_KEYS = {
-  general: ['gamesPlayed', 'avgMinutes', 'doubleDouble', 'tripleDouble', 'per', 'avgRebounds'],
-  offensive: [
-    'points', 'avgPoints', 'avgFgMade', 'avgFgAtt', 'fgPct',
-    'avgThreeMade', 'avgThreeAtt', 'threePct',
-    'avgFtMade', 'avgFtAtt', 'ftPct', 'avgAssists', 'avgTurnovers',
-  ],
-  defensive: ['avgSteals', 'avgBlocks'],
+//
+// Each athlete's `categories[].values` is a POSITIONAL array — the column names live
+// once at the top level (`d.categories[].names`), and the layout is NOT the same across
+// sports. A hardcoded index map borrowed from another league silently reads the wrong
+// column (it put Luka's field-goals-per-game in the points slot). So resolve every stat
+// by NAME instead: app field → ESPN stat name.
+const LEADER_FIELDS = {
+  gamesPlayed: 'gamesPlayed',
+  avgMinutes: 'avgMinutes',
+  avgRebounds: 'avgRebounds',
+  doubleDouble: 'doubleDouble',
+  tripleDouble: 'tripleDouble',
+  points: 'points', // season total
+  avgPoints: 'avgPoints',
+  avgFgMade: 'avgFieldGoalsMade',
+  avgFgAtt: 'avgFieldGoalsAttempted',
+  fgPct: 'fieldGoalPct',
+  avgThreeMade: 'avgThreePointFieldGoalsMade',
+  avgThreeAtt: 'avgThreePointFieldGoalsAttempted',
+  threePct: 'threePointFieldGoalPct',
+  avgFtMade: 'avgFreeThrowsMade',
+  avgFtAtt: 'avgFreeThrowsAttempted',
+  ftPct: 'freeThrowPct',
+  avgAssists: 'avgAssists',
+  avgTurnovers: 'avgTurnovers',
+  avgSteals: 'avgSteals',
+  avgBlocks: 'avgBlocks',
 }
 
 const round = (v, p = 1) =>
@@ -262,17 +281,25 @@ async function fetchLeaders() {
     `${WEB}/statistics/byathlete?region=us&lang=en&season=${SEASON}&seasontype=2&limit=300`
   )
 
+  // ESPN stat name → [categoryIndex, valueIndex], from the top-level column definitions.
+  const index = {}
+  ;(d.categories || []).forEach((cat, ci) => {
+    ;(cat.names || []).forEach((name, vi) => {
+      if (!(name in index)) index[name] = [ci, vi]
+    })
+  })
+  const read = (athleteCats, espnName) => {
+    const pos = index[espnName]
+    return pos ? athleteCats?.[pos[0]]?.values?.[pos[1]] : undefined
+  }
+
   return (d.athletes || [])
     .map(({ athlete: a, categories }) => {
       const stats = {}
-      for (const cat of categories || []) {
-        const keys = STAT_KEYS[cat.name]
-        if (!keys) continue
-        keys.forEach((key, i) => {
-          // Percentages arrive as 0-100 floats with float noise (40.00000059…).
-          const precision = key.endsWith('Pct') ? 1 : key === 'points' ? 0 : 1
-          stats[key] = round(cat.values?.[i], precision)
-        })
+      for (const [field, espnName] of Object.entries(LEADER_FIELDS)) {
+        // Percentages 1dp; per-game averages 1dp; counts/totals 0dp.
+        const precision = field.endsWith('Pct') || field.startsWith('avg') ? 1 : 0
+        stats[field] = round(read(categories, espnName), precision)
       }
       return {
         id: a.id,

@@ -1071,6 +1071,9 @@ select:hover,
 .st-in {
   color: var(--viz-pos);
 }
+.st-play {
+  color: var(--gold);
+}
 .st-chase {
   color: var(--text-dim);
 }

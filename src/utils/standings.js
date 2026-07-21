@@ -243,9 +243,12 @@ export function magicNumber(row, chaser, totals) {
   return n <= 0 ? null : n
 }
 
-// Clinch/eliminate math, computed PER CONFERENCE (a team races its own conference for
-// the 8 spots, not the league). Returns a flat list of every team, each carrying its
-// conference seed and race status.
+// Clinch/eliminate math, computed PER CONFERENCE (a team races its own conference, not
+// the league). The elimination boundary is the PLAY-IN field — the top 10, not the top 8
+// — because seeds 9 and 10 also play in and are not "out". Returns a flat list of every
+// team with its conference seed and race status.
+const PLAYIN_CUT_SEED = PLAYIN_SEEDS[PLAYIN_SEEDS.length - 1] // 10
+
 export function playoffRace(games) {
   const byConf = conferenceStandings(games)
   const totals = scheduledGames(games)
@@ -253,16 +256,16 @@ export function playoffRace(games) {
 
   for (const conf of ['E', 'W']) {
     const rows = byConf[conf]
-    const cut = rows[PLAYOFF_SPOTS - 1] // 8th seed — the last team in
-    const firstOut = rows[PLAYOFF_SPOTS] // 9th seed — first team out
+    const cut = rows[PLAYIN_CUT_SEED - 1] // 10th seed — last team in the play-in field
+    const firstOut = rows[PLAYIN_CUT_SEED] // 11th seed — first team out
 
     for (const row of rows) {
       const remaining = (totals[row.abbr] ?? 0) - row.gp
-      // Clinched when even losing out still leaves the 9th-place team short.
+      // Clinched a play-in berth when even losing out still leaves the 11th-place team short.
       const clinched = firstOut
         ? row.w > firstOut.w + ((totals[firstOut.abbr] ?? 0) - firstOut.gp)
         : false
-      // Eliminated when winning out still cannot reach the current 8th seed.
+      // Eliminated when winning out still cannot reach the current 10th seed.
       const eliminated = cut ? row.w + remaining < cut.w : false
       out.push({
         ...row,
@@ -271,7 +274,7 @@ export function playoffRace(games) {
         clinched,
         eliminated,
         gbCut: cut ? gamesBehind(cut, row) : 0,
-        magic: row.inPlayoffs && firstOut && !clinched ? magicNumber(row, firstOut, totals) : null,
+        magic: row.seed <= PLAYIN_CUT_SEED && firstOut && !clinched ? magicNumber(row, firstOut, totals) : null,
       })
     }
   }
