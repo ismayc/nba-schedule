@@ -1,10 +1,29 @@
-import { useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { buildBracket, PLAYOFF_ROUNDS } from '../utils/bracket.js'
 import { CONFERENCES } from '../utils/standings.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { formatDate } from '../utils/time.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
+
+// Track a CSS media query. jsdom (tests) has no matchMedia, so this reports false there
+// and the desktop layout renders — which is what the render/follow tests assert against.
+function useMediaQuery(query) {
+  const supported = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  const [matches, setMatches] = useState(() => (supported ? window.matchMedia(query).matches : false))
+  useEffect(() => {
+    if (!supported) return
+    const mq = window.matchMedia(query)
+    const on = () => setMatches(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query, supported])
+  return matches
+}
+
+// Short pill labels for the mobile round selector (the full names don't fit a phone).
+const ROUND_SHORT = { R1: '1st Round', CSF: 'Conf. Semis', CF: 'Conf. Finals', Final: 'Finals' }
 
 // One dot per game in the series: filled for a played game, hollow for one still to
 // come. Reads faster than a scoreline when scanning a bracket.
@@ -118,9 +137,60 @@ function ConferenceBracket({ conf, data, onPick, tz }) {
   )
 }
 
+// Phones: one round at a time, chosen from a pill selector, as a full-width vertical
+// list — the same pattern world-cup-viewer uses so the bracket needs no horizontal
+// scrolling on a phone. Each round shows both conferences' series under sub-headers.
+function MobileBracket({ rounds, active, setActive, onPick, tz }) {
+  const round = rounds.find((r) => r.key === active) || rounds[0]
+  return (
+    <div className="bx-mobile">
+      <div className="bx-round-tabs" role="tablist" aria-label="Playoff rounds">
+        {rounds.map((r) => (
+          <button
+            key={r.key}
+            role="tab"
+            aria-selected={r.key === active}
+            className={`bx-round-btn${r.key === active ? ' active' : ''}`}
+            onClick={() => setActive(r.key)}
+          >
+            {ROUND_SHORT[r.key]}
+          </button>
+        ))}
+      </div>
+      <div className="bx-mobile-list">
+        {round.groups.map((g) => (
+          <Fragment key={g.conf ?? 'final'}>
+            {g.conf && <h4 className="bx-mobile-conf">{CONFERENCES[g.conf]}</h4>}
+            {g.series.map((s, i) => (
+              <Series key={i} series={s} onPick={onPick} tz={tz} />
+            ))}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Bracket({ games, tz, onPick }) {
   const bracket = useMemo(() => buildBracket(games), [games])
   const { conferences, final, champion, projected, playIn } = bracket
+  const isMobile = useMediaQuery('(max-width: 720px)')
+
+  // Rounds in bracket order, each carrying both conferences' series — the source for the
+  // mobile one-round-at-a-time view.
+  const rounds = useMemo(
+    () => [
+      { key: 'R1', groups: [{ conf: 'E', series: conferences.E.r1 }, { conf: 'W', series: conferences.W.r1 }] },
+      { key: 'CSF', groups: [{ conf: 'E', series: conferences.E.csf }, { conf: 'W', series: conferences.W.csf }] },
+      { key: 'CF', groups: [{ conf: 'E', series: [conferences.E.cf] }, { conf: 'W', series: [conferences.W.cf] }] },
+      { key: 'Final', groups: [{ conf: null, series: [final] }] },
+    ],
+    [conferences, final]
+  )
+
+  // Open to the earliest round still undecided (the live/next one), else the Finals.
+  const firstLive = rounds.find((r) => r.groups.some((g) => g.series.some((s) => !s.complete)))
+  const [active, setActive] = useState(() => (firstLive ?? rounds[rounds.length - 1]).key)
 
   return (
     <section className="view">
@@ -149,18 +219,22 @@ export default function Bracket({ games, tz, onPick }) {
         </p>
       )}
 
-      <div className="bx">
-        <ConferenceBracket conf="E" data={conferences.E} onPick={onPick} tz={tz} />
+      {isMobile ? (
+        <MobileBracket rounds={rounds} active={active} setActive={setActive} onPick={onPick} tz={tz} />
+      ) : (
+        <div className="bx">
+          <ConferenceBracket conf="E" data={conferences.E} onPick={onPick} tz={tz} />
 
-        <div className="bx-conf bx-conf-final">
-          <h3 className="bx-conf-title">{PLAYOFF_ROUNDS.Final}</h3>
-          <div className="bx-col bx-col-final">
-            <Series series={final} onPick={onPick} tz={tz} />
+          <div className="bx-conf bx-conf-final">
+            <h3 className="bx-conf-title">{PLAYOFF_ROUNDS.Final}</h3>
+            <div className="bx-col bx-col-final">
+              <Series series={final} onPick={onPick} tz={tz} />
+            </div>
           </div>
-        </div>
 
-        <ConferenceBracket conf="W" data={conferences.W} onPick={onPick} tz={tz} />
-      </div>
+          <ConferenceBracket conf="W" data={conferences.W} onPick={onPick} tz={tz} />
+        </div>
+      )}
 
       {projected && (
         <div className="card">

@@ -80,12 +80,16 @@ describe('Bracket before the postseason', () => {
 })
 
 describe('RadialBracket', () => {
-  it('renders two conference wheels — a node per seed plus the inner rounds', () => {
+  it('renders one whole-bracket wheel — a node per seed each side plus the inner rounds', () => {
     const { container } = render(<RadialBracket games={REGULAR} />)
-    // Two wheels: 8 seeds, 4 first-round and 2 semifinal slots each.
+    // Both conferences in one wheel: 8 seeds, 4 first-round and 2 semifinal slots each side.
     expect(container.querySelectorAll('.rb-leaf')).toHaveLength(16)
     expect(container.querySelectorAll('.rb-r1')).toHaveLength(8)
     expect(container.querySelectorAll('.rb-csf')).toHaveLength(4)
+    // One conference-champion node per side, and the West/East side labels.
+    expect(container.querySelectorAll('.rb-cf')).toHaveLength(2)
+    expect(container.querySelector('.rb-side-w')).toBeTruthy()
+    expect(container.querySelector('.rb-side-e')).toBeTruthy()
   })
 
   it('shows the trophy while undecided and the champion once settled', () => {
@@ -94,7 +98,8 @@ describe('RadialBracket', () => {
 
     const { container: done } = render(<RadialBracket games={GAMES} />)
     expect(done.querySelector('.rb-trophy')).toBeFalsy()
-    expect(within(done.querySelector('.rb-final')).getByText('Knicks')).toBeInTheDocument()
+    // The Finals winner sits at the centre.
+    expect(within(done.querySelector('.rb-center')).getByText('Knicks')).toBeInTheDocument()
   })
 
   it('labels seeds 1 through 8 around each conference ring', () => {

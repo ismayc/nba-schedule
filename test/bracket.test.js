@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { NBA_POSTSEASON } from './fixtures/postseason.js'
 import { GAMES } from '../src/data/schedule.js'
-import { buildSeries, buildBracket, layout, R1_PAIRS } from '../src/utils/bracket.js'
+import { buildSeries, buildBracket, layout, polar, CENTER, R1_PAIRS } from '../src/utils/bracket.js'
 
 // The committed 2025-26 schedule now carries a finished postseason, so the real bracket
 // is the best test of the engine. Everything below the play-in resolves from those games.
@@ -141,28 +141,33 @@ describe('projection before the postseason exists', () => {
   })
 })
 
-describe('radial layout', () => {
+describe('radial layout (whole bracket)', () => {
   const geo = layout()
 
-  it('places eight seeds evenly around the ring', () => {
-    expect(geo.leaves).toHaveLength(8)
-    const angles = geo.leaves.map((l) => l.angle).sort((a, b) => a - b)
-    for (let i = 1; i < angles.length; i++) {
-      expect(angles[i] - angles[i - 1]).toBeCloseTo(45, 5)
-    }
+  it('splits into two conference fans plus a centre for the Finals', () => {
+    expect(geo.W.leaves).toHaveLength(8)
+    expect(geo.E.leaves).toHaveLength(8)
+    expect(geo.E.r1).toHaveLength(4)
+    expect(geo.E.csf).toHaveLength(2)
+    expect(geo.finals).toEqual({ angle: 0, r: 0 })
   })
 
-  it('puts each first-round match at the midpoint of its two children', () => {
-    expect(geo.r1.map((m) => Math.round(m.angle))).toEqual([90, 0, 270, 180])
+  it('fans East on the right half and West on the left half', () => {
+    const x = (n) => polar(n.angle, n.r).x
+    for (const leaf of geo.E.leaves) expect(x(leaf)).toBeGreaterThan(CENTER)
+    for (const leaf of geo.W.leaves) expect(x(leaf)).toBeLessThan(CENTER)
   })
 
-  it('puts the two conference semifinals opposite each other', () => {
-    const [a, b] = geo.csf.map((s) => s.angle)
-    expect(Math.abs(((a - b + 360) % 360) - 180)).toBeLessThan(0.001)
+  it('lands each conference final just off centre on its own side', () => {
+    expect(Math.round(geo.E.cf.angle)).toBe(0) // right of centre
+    expect(Math.round(geo.W.cf.angle)).toBe(180) // left of centre
   })
 
-  it('advances each round inward', () => {
-    expect(geo.leaves[0].r).toBeGreaterThan(geo.r1[0].r)
-    expect(geo.r1[0].r).toBeGreaterThan(geo.csf[0].r)
+  it('advances each round inward toward the centre', () => {
+    const g = geo.E
+    expect(g.leaves[0].r).toBeGreaterThan(g.r1[0].r)
+    expect(g.r1[0].r).toBeGreaterThan(g.csf[0].r)
+    expect(g.csf[0].r).toBeGreaterThan(g.cf.r)
+    expect(g.cf.r).toBeGreaterThan(geo.finals.r)
   })
 })

@@ -64,7 +64,11 @@ body {
 .app {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 22px 18px 64px;
+  /* Reserve the iOS status-bar / notch space. The page opts into the full screen
+     (viewport-fit=cover + a translucent status bar), so without this the title slides
+     under the clock on a phone. env() is 0 where there's no inset (desktop). */
+  padding: calc(22px + env(safe-area-inset-top, 0px)) calc(18px + env(safe-area-inset-right, 0px))
+    64px calc(18px + env(safe-area-inset-left, 0px));
 }
 
 h1,
@@ -1000,7 +1004,9 @@ select:hover,
   position: absolute;
   top: 4px;
   height: 10px;
-  width: var(--w);
+  /* --arm-scale shrinks the arms on a narrow track so the value label always clears
+     the longest bar; it's 1 on desktop (see the mobile override). */
+  width: calc(var(--w) * var(--arm-scale, 1));
 }
 
 .margin-bar.pos {
@@ -1028,11 +1034,11 @@ select:hover,
    clamped so a long bar in a narrow track can't push the label out of the card.
    The reserve matches the widest label ("−10.0"). */
 .margin-label.pos {
-  left: min(calc(50% + var(--w, 0%) + 6px), calc(100% - 34px));
+  left: min(calc(50% + var(--w, 0%) * var(--arm-scale, 1) + 6px), calc(100% - 34px));
 }
 
 .margin-label.neg {
-  right: min(calc(50% + var(--w, 0%) + 6px), calc(100% - 34px));
+  right: min(calc(50% + var(--w, 0%) * var(--arm-scale, 1) + 6px), calc(100% - 34px));
 }
 
 .margin-split {
@@ -1616,6 +1622,37 @@ select:hover,
   font-weight: 700;
 }
 
+/* Whole-bracket wheel: one circle, West on the left, East on the right. */
+.rb-whole {
+  max-width: 600px;
+}
+.rb-whole .rb-center {
+  width: 92px;
+  height: 92px;
+}
+.rb-side-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.rb-side-w {
+  left: 2px;
+}
+.rb-side-e {
+  right: 2px;
+}
+/* The two conference champions, just off centre. */
+.rb-cf {
+  border-color: var(--gold);
+  border-width: 2px;
+}
+
 @media (max-width: 760px) {
   .bx {
     /* Keep the fan intact but let it scroll horizontally inside its own box. */
@@ -1625,6 +1662,49 @@ select:hover,
   .bx-col {
     min-width: 116px;
   }
+}
+
+/* Mobile bracket: a round-selector + one round at a time as a full-width vertical list,
+   so the bracket needs no horizontal scrolling on a phone. */
+.bx-round-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 14px;
+  padding-bottom: 2px;
+}
+.bx-round-btn {
+  flex: 1 0 auto;
+  white-space: nowrap;
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bx-round-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--card-hover);
+}
+.bx-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bx-mobile-list .bx-series {
+  width: 100%;
+}
+.bx-mobile-conf {
+  margin: 8px 0 2px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
 }
 
 /* ── Game detail modal ──────────────────────────────────────────────── */
@@ -2417,6 +2497,12 @@ select:hover,
     display: none;
   }
 
+  /* The track is much narrower now, so shrink the arms to keep the longest bar's value
+     label (a top or bottom team's margin, e.g. "+8.6" / "−10.0") from overrunning it. */
+  .margin {
+    --arm-scale: 0.68;
+  }
+
   .tiles {
     grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
   }
@@ -2442,6 +2528,31 @@ select:hover,
 
   .side-loc {
     display: none;
+  }
+
+  /* Stack the two teams so each nickname gets the full card width instead of half —
+     beside the star, logo, and score, half a phone leaves "Timberwolves" as "T…". Both
+     rows read the same way: star · logo · name … score. */
+  .game-teams {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .at {
+    display: none;
+  }
+
+  .side:last-child {
+    flex-direction: row;
+    text-align: left;
+  }
+
+  .side:last-child .star {
+    order: -1;
+  }
+
+  .side:last-child .side-score {
+    margin-inline: auto 0;
   }
 
   .brand h1 {

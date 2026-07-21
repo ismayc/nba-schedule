@@ -185,18 +185,19 @@ export function buildBracket(games) {
 }
 
 // ── Radial geometry ──────────────────────────────────────────────────────────
-// Kept here rather than in the component so it can be tested without a DOM. One wheel
-// per conference: eight seeds on the outer ring advancing inward to the conference
-// champion at the centre. Same 8→4→2→1 geometry as a single knockout, so a conference
-// renders as one wheel and the two wheels flank the Finals.
+// Kept here rather than in the component so it can be tested without a DOM. The WHOLE
+// bracket is one wheel: West fills the LEFT half, East fills the RIGHT half, and the two
+// conference champions sit on either side of the Finals at the centre. Each side runs
+// 8 seeds → 4 → 2 → 1, converging inward:
 //
-//   R1 matches → 90° (top), 0° (right), 270° (bottom), 180° (left)
-//   Semifinals → 45° (upper right), 225° (lower left)
+//   East seeds fan the right semicircle (+75°…−75°); West mirrors on the left
+//   (105°…255°). A side's conference-final lands at 0° (East) / 180° (West), just off
+//   centre; the Finals is the centre itself.
 
 export const CENTER = 50
-export const RING = { leaf: 41, R1: 29, CSF: 17 }
+export const RING = { leaf: 45, r1: 34, csf: 23, cf: 12 }
 
-// Seed order around the ring, matching the fixed bracket: 1v8, 4v5 | 2v7, 3v6.
+// Seed order around a side, matching the fixed bracket: 1v8, 4v5 | 2v7, 3v6.
 export const LEAF_SEEDS = [1, 8, 4, 5, 2, 7, 3, 6]
 
 export const polar = (deg, r) => {
@@ -210,19 +211,38 @@ export function midAngle(a, b) {
   return (a + diff / 2 + 360) % 360
 }
 
-const leafAngle = (i) => (112.5 - i * 45 + 360) % 360
+const norm = (deg) => ((deg % 360) + 360) % 360
+const LEAF_SPAN = 150 // degrees the eight seeds of one conference span
+const LEAF_START = 75 // East's top seed at +75°, bottom at −75°; West mirrors
 
-export function layout() {
-  const leaves = LEAF_SEEDS.map((seed, i) => ({ seed, angle: leafAngle(i), r: RING.leaf }))
+function sideLayout(side) {
+  const step = LEAF_SPAN / 7
+  // East runs +75°→−75° down the right side; West mirrors across the vertical axis.
+  const place = (deg) => norm(side === 'W' ? 180 - deg : deg)
+  const leaves = LEAF_SEEDS.map((seed, i) => ({
+    seed,
+    angle: place(LEAF_START - i * step),
+    r: RING.leaf,
+  }))
   const r1 = [0, 1, 2, 3].map((i) => ({
     angle: midAngle(leaves[i * 2].angle, leaves[i * 2 + 1].angle),
-    r: RING.R1,
+    r: RING.r1,
     children: [leaves[i * 2], leaves[i * 2 + 1]],
   }))
   const csf = [0, 1].map((i) => ({
     angle: midAngle(r1[i * 2].angle, r1[i * 2 + 1].angle),
-    r: RING.CSF,
+    r: RING.csf,
     children: [r1[i * 2], r1[i * 2 + 1]],
   }))
-  return { leaves, r1, csf }
+  const cf = {
+    angle: midAngle(csf[0].angle, csf[1].angle),
+    r: RING.cf,
+    children: [csf[0], csf[1]],
+  }
+  return { side, leaves, r1, csf, cf }
+}
+
+// The whole postseason as one wheel: West (left), East (right), Finals at the centre.
+export function layout() {
+  return { W: sideLayout('W'), E: sideLayout('E'), finals: { angle: 0, r: 0 } }
 }

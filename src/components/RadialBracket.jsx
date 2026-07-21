@@ -1,13 +1,11 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { buildBracket, layout, polar, CENTER, RING } from '../utils/bracket.js'
-import { CONFERENCES } from '../utils/standings.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
 
-function Node({ pos, abbr, label, size, className = '', title, onClick, dim }) {
+function Node({ pos, abbr, label, size, className = '', title, onClick, dim, onHover }) {
   const { x, y } = polar(pos.angle, pos.r)
-  const style = { left: `${x}%`, top: `${y}%` }
   const team = TEAM_BY_ABBR[abbr]
   const { isFollowed } = useFollow()
 
@@ -16,7 +14,8 @@ function Node({ pos, abbr, label, size, className = '', title, onClick, dim }) {
       className={`rb-node ${className} ${dim ? 'is-dim' : ''} ${team ? '' : 'is-empty'} ${
         isFollowed(abbr) ? 'followed' : ''
       }`}
-      style={style}
+      style={{ left: `${x}%`, top: `${y}%` }}
+      onMouseEnter={() => onHover?.(abbr)}
       onClick={() => team && onClick?.(abbr)}
       title={title || team?.displayName || label}
       aria-label={title || team?.displayName || label}
@@ -26,125 +25,104 @@ function Node({ pos, abbr, label, size, className = '', title, onClick, dim }) {
   )
 }
 
-// One conference is a full 8→4→2→1 wheel: seeds on the outer ring, advancing inward to
-// the conference champion at the centre. The two wheels flank the Finals indicator.
-function ConferenceWheel({ conf, data, seeds, geo, onPick }) {
-  const [hover, setHover] = useState(null)
+// One side of the wheel: the eight seeds on the outer ring, advancing inward through the
+// two playoff rounds to the conference champion just off centre.
+function Side({ geo, data, seeds, hover, setHover, onPick }) {
   const bySeed = Object.fromEntries(seeds.map((r) => [r.seed, r]))
-
-  const lines = [
-    ...geo.r1.flatMap((m, i) =>
-      m.children.map((c) => ({ from: c, to: m, key: `r1-${i}-${c.seed}` }))
-    ),
-    ...geo.csf.flatMap((s, i) =>
-      s.children.map((c, j) => ({ from: c, to: s, key: `csf-${i}-${j}` }))
-    ),
-    ...geo.csf.map((s, i) => ({ from: s, to: { angle: 0, r: 0 }, key: `f-${i}` })),
-  ]
-
   return (
-    <div className="rb-wheel">
-      <h3 className="rb-conf-title">{CONFERENCES[conf]}</h3>
-      <div className="rb" onMouseLeave={() => setHover(null)}>
-        <svg className="rb-lines" viewBox="0 0 100 100" aria-hidden="true">
-          {lines.map(({ from, to, key }) => {
-            const a = polar(from.angle, from.r)
-            const b = polar(to.angle, to.r)
-            return <line key={key} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-          })}
-          <circle cx={CENTER} cy={CENTER} r={RING.leaf} className="rb-ring" />
-          <circle cx={CENTER} cy={CENTER} r={RING.R1} className="rb-ring" />
-          <circle cx={CENTER} cy={CENTER} r={RING.CSF} className="rb-ring" />
-        </svg>
-
-        {/* Outer ring — the eight conference seeds */}
-        {geo.leaves.map((leaf) => {
-          const row = bySeed[leaf.seed]
-          const abbr = row?.abbr
-          return (
-            <span key={`leaf-${leaf.seed}`} onMouseEnter={() => setHover(abbr)}>
-              <Node
-                pos={leaf}
-                abbr={abbr}
-                label={`${leaf.seed}`}
-                size={30}
-                className="rb-leaf"
-                dim={hover && hover !== abbr}
-                title={
-                  row ? `${leaf.seed}. ${row.team.displayName} (${row.w}–${row.l})` : undefined
-                }
-                onClick={onPick}
-              />
-              <span
-                className="rb-seed"
-                style={{
-                  left: `${polar(leaf.angle, RING.leaf + 7).x}%`,
-                  top: `${polar(leaf.angle, RING.leaf + 7).y}%`,
-                }}
-              >
-                {leaf.seed}
-              </span>
+    <>
+      {geo.leaves.map((leaf) => {
+        const row = bySeed[leaf.seed]
+        const seedPos = polar(leaf.angle, RING.leaf + 6)
+        return (
+          <Fragment key={`leaf-${geo.side}-${leaf.seed}`}>
+            <Node
+              pos={leaf}
+              abbr={row?.abbr}
+              label={`${leaf.seed}`}
+              size={28}
+              className="rb-leaf"
+              dim={hover && hover !== row?.abbr}
+              title={row ? `${leaf.seed}. ${row.team.displayName} (${row.w}–${row.l})` : undefined}
+              onClick={onPick}
+              onHover={setHover}
+            />
+            <span className="rb-seed" style={{ left: `${seedPos.x}%`, top: `${seedPos.y}%` }}>
+              {leaf.seed}
             </span>
-          )
-        })}
+          </Fragment>
+        )
+      })}
 
-        {/* First-round winners */}
-        {geo.r1.map((pos, i) => {
-          const w = data.r1[i]?.winner
-          return (
-            <span key={`r1-${i}`} onMouseEnter={() => w && setHover(w)}>
-              <Node
-                pos={pos}
-                abbr={w}
-                label="—"
-                size={26}
-                className="rb-r1"
-                dim={hover && hover !== w}
-                onClick={onPick}
-              />
-            </span>
-          )
-        })}
+      {geo.r1.map((pos, i) => {
+        const w = data.r1[i]?.winner
+        return (
+          <Node
+            key={`r1-${geo.side}-${i}`}
+            pos={pos}
+            abbr={w}
+            label="—"
+            size={24}
+            className="rb-r1"
+            dim={hover && hover !== w}
+            onClick={onPick}
+            onHover={(a) => a && setHover(a)}
+          />
+        )
+      })}
 
-        {/* Conference-semifinal winners */}
-        {geo.csf.map((pos, i) => {
-          const w = data.csf[i]?.winner
-          return (
-            <span key={`csf-${i}`} onMouseEnter={() => w && setHover(w)}>
-              <Node
-                pos={pos}
-                abbr={w}
-                label="—"
-                size={26}
-                className="rb-csf"
-                dim={hover && hover !== w}
-                onClick={onPick}
-              />
-            </span>
-          )
-        })}
+      {geo.csf.map((pos, i) => {
+        const w = data.csf[i]?.winner
+        return (
+          <Node
+            key={`csf-${geo.side}-${i}`}
+            pos={pos}
+            abbr={w}
+            label="—"
+            size={24}
+            className="rb-csf"
+            dim={hover && hover !== w}
+            onClick={onPick}
+            onHover={(a) => a && setHover(a)}
+          />
+        )
+      })}
 
-        {/* Centre — the conference champion */}
-        <div className="rb-center">
-          {data.champion ? (
-            <>
-              <TeamLogo abbr={data.champion} size={38} />
-              <span className="rb-champ">{TEAM_BY_ABBR[data.champion]?.name}</span>
-            </>
-          ) : (
-            <span className="rb-tbd">—</span>
-          )}
-        </div>
-      </div>
-    </div>
+      {/* Conference champion, just off centre on this side. */}
+      <Node
+        pos={geo.cf}
+        abbr={data.champion}
+        label="—"
+        size={26}
+        className="rb-cf"
+        dim={hover && hover !== data.champion}
+        onClick={onPick}
+        onHover={(a) => a && setHover(a)}
+      />
+    </>
   )
 }
 
 export default function RadialBracket({ games, onPick }) {
   const bracket = useMemo(() => buildBracket(games), [games])
   const geo = useMemo(layout, [])
+  const [hover, setHover] = useState(null)
 
-  const { conferences, champion, projected } = bracket
+  const { conferences, champion, projected, seeds } = bracket
+
+  // West on the left, East on the right.
+  const sides = [
+    { key: 'W', geo: geo.W, data: conferences.W, seeds: seeds.W },
+    { key: 'E', geo: geo.E, data: conferences.E, seeds: seeds.E },
+  ]
+
+  // Every parent→child spoke, both sides, plus each conference final into the centre.
+  const lines = sides.flatMap(({ key, geo: g }) => [
+    ...g.r1.flatMap((m, i) => m.children.map((c) => ({ from: c, to: m, key: `${key}-r1-${i}-${c.seed}` }))),
+    ...g.csf.flatMap((s, i) => s.children.map((c, j) => ({ from: c, to: s, key: `${key}-csf-${i}-${j}` }))),
+    ...g.cf.children.map((s, i) => ({ from: s, to: g.cf, key: `${key}-cf-${i}` })),
+    { from: g.cf, to: geo.finals, key: `${key}-fin` },
+  ])
 
   return (
     <section className="view">
@@ -152,9 +130,9 @@ export default function RadialBracket({ games, onPick }) {
         <div>
           <h2>Radial bracket</h2>
           <p className="sub">
-            One wheel per conference — seeds on the outside, that conference&apos;s champion
-            in the middle. Every round advances one ring inward; the two champions meet in
-            the Finals.
+            The whole bracket in one wheel — <strong>West on the left, East on the right</strong>,
+            seeds on the outside advancing inward. Each conference&apos;s champion sits beside the
+            centre, where the two meet in the Finals.
           </p>
         </div>
       </div>
@@ -166,22 +144,44 @@ export default function RadialBracket({ games, onPick }) {
         </p>
       )}
 
-      <div className="rb-pair">
-        <ConferenceWheel conf="E" data={conferences.E} seeds={bracket.seeds.E} geo={geo} onPick={onPick} />
+      <div className="rb rb-whole" onMouseLeave={() => setHover(null)}>
+        <svg className="rb-lines" viewBox="0 0 100 100" aria-hidden="true">
+          {lines.map(({ from, to, key }) => {
+            const a = polar(from.angle, from.r)
+            const b = polar(to.angle, to.r)
+            return <line key={key} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+          })}
+          <circle cx={CENTER} cy={CENTER} r={RING.leaf} className="rb-ring" />
+          <circle cx={CENTER} cy={CENTER} r={RING.r1} className="rb-ring" />
+          <circle cx={CENTER} cy={CENTER} r={RING.csf} className="rb-ring" />
+        </svg>
 
-        <div className="rb-final">
-          <span className="rb-final-label">NBA Finals</span>
+        <span className="rb-side-label rb-side-w">West</span>
+        <span className="rb-side-label rb-side-e">East</span>
+
+        {sides.map((s) => (
+          <Side
+            key={s.key}
+            geo={s.geo}
+            data={s.data}
+            seeds={s.seeds}
+            hover={hover}
+            setHover={setHover}
+            onPick={onPick}
+          />
+        ))}
+
+        {/* Centre — the champion (NBA Finals winner) */}
+        <div className="rb-center">
           {champion ? (
             <>
-              <TeamLogo abbr={champion} size={44} />
+              <TeamLogo abbr={champion} size={40} />
               <span className="rb-champ">{TEAM_BY_ABBR[champion]?.name}</span>
             </>
           ) : (
             <span className="rb-trophy">🏆</span>
           )}
         </div>
-
-        <ConferenceWheel conf="W" data={conferences.W} seeds={bracket.seeds.W} geo={geo} onPick={onPick} />
       </div>
     </section>
   )
