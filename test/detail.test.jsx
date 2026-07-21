@@ -9,7 +9,9 @@ import { GAMES } from '../src/data/schedule.js'
 
 const TZ = 'America/New_York'
 const played = GAMES.find((g) => g.score && g.venue && g.broadcast)
-const upcoming = GAMES.find((g) => !g.score && !g.postponed)
+// The committed season is complete, so there is no unplayed game to borrow — synthesise
+// one by stripping the result off a real game, keeping its (valid) NBA matchup.
+const upcoming = { ...played, id: 'upcoming-1', score: undefined, ot: undefined, line: undefined }
 
 const open = (game, props = {}) =>
   render(<GameDetail game={game} games={GAMES} tz={TZ} onClose={() => {}} {...props} />)

@@ -33,23 +33,36 @@ node scripts/fetch-schedule.mjs --season 2027   # regenerates teams/schedule/lea
 - Carried over from WNBA: calendar Netlify function, CI/node-guard/refresh workflows,
   netlify.toml, PWA manifest, the `Lineups` game-detail panel (summary URL now `nba`).
 
-## Owed (the NBA-specific work still to do)
+## Playoff model + tiebreakers — DONE (conference-based)
 
-1. **Playoff model is the big one.** The WNBA seeds its 8 playoff teams **league-wide**
-   (single bracket, rounds R1/SF/Final, best-of 3/5/7). The NBA is **conference-based**:
-   8 teams per conference, a **play-in** (seeds 7–10), two 1v8/4v5/2v7/3v6 brackets, and
-   4 best-of-7 rounds (R1/CSF/CF/Final) → Finals. `seedings`/`playoffRace` in
-   `standings.js` and `buildBracket`/`Bracket.jsx`/`RadialBracket.jsx` still carry the
-   WNBA league-wide model — flagged with a `TODO(nba-playoffs)`. **The bracket is a
-   known-wrong placeholder until this is ported** (deliberately not shipped as correct).
-   `src/data/schedule.js` already exports the right NBA `PLAYOFF_ROUNDS`/`SERIES_LENGTH`.
-2. **Tests: 204/262 pass.** The 58 failures are the sport divergences — WNBA team abbrs
-   in fixtures/assertions, data counts, and the bracket model above. Need adapting to NBA
-   data + the conference bracket. `test/fixtures/playoffs-2025.js` is a WNBA fixture to
-   replace with an NBA conference-bracket fixture (the committed 2025-26 playoffs are real
-   and can seed it).
-3. **Game-detail re-sync.** WNBA is mid-refactor replacing the `Lineups` panel with a
+`standings.js` and `bracket.js` were ported from the WNBA league-wide, single-8-team model
+to the real NBA conference model, verified against the committed 2025-26 postseason:
+
+- **Per-conference seeding.** `conferenceStandings(games)` → `{ E:[15], W:[15] }`, each
+  seeded 1–15 within its conference; top 8 make the field, seeds 7–10 are the play-in.
+  `playoffRace` computes clinch/eliminate per conference.
+- **NBA tiebreakers**, in official order: win% → head-to-head → division-leader-over-
+  non-leader → division record (same division) → conference record → point differential,
+  with a deterministic alphabetical tail. All 6 divisions are modelled
+  (`DIVISION_BY_ABBR`). The circular "record vs playoff teams" steps fall through to point
+  differential — documented, not silently dropped (cf. the NFL common-games note).
+- **Two-conference bracket + play-in.** `buildBracket` builds East and West brackets
+  (1v8/4v5/2v7/3v6 → CSF → CF, all best-of-7) into the NBA Finals. Real series are located
+  by their **play-in-immune higher seed**, so a 7-over-2 upset resolves correctly. Verified:
+  East champ NY, West champ SA, champion NY. `Bracket.jsx` renders two conference fans +
+  the Finals; `RadialBracket.jsx` renders two conference wheels flanking the Finals.
+- **Tests: 273/273 pass** (19 files); `npm run build` clean.
+
+## Still owed (polish + a re-sync)
+
+1. **Game-detail re-sync.** WNBA is mid-refactor replacing the `Lineups` panel with a
    broader `GameSummary`/`services/summary.js`. This snapshot has the earlier `Lineups`
    version (internally consistent). Re-sync once the WNBA refactor lands.
-4. **Polish:** README rewrite (NBA specifics), `public/og-image.png` (regenerate), verify
-   the calendar function against NBA data, apple-touch-icon/PWA icons, coverage badge.
+2. **Offseason data caveat.** The committed 2025-26 season is fully complete, so a handful
+   of tests synthesise upcoming games and the two "live overlay" tests assert the idle
+   (season-over) path. Revisit those if a mid-season snapshot is ever committed. When the
+   2026-27 schedule posts, `fetch:schedule --season 2027` regenerates to an in-progress
+   season and they should re-assert active polling.
+3. **Polish:** README rewrite (NBA specifics), `public/og-image.png` (regenerate), the
+   calendar name could show `2025-26` (currently `2026`), apple-touch-icon/PWA icons,
+   coverage badge/thresholds.

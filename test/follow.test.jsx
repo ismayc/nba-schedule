@@ -14,7 +14,7 @@ const game = {
   tip: '2026-07-20T23:00:00.000Z',
   seasonType: 'regular',
   home: 'MIN',
-  away: 'SEA',
+  away: 'LAL',
 }
 
 const wrap = (ui) => render(<FollowProvider>{ui}</FollowProvider>)
@@ -26,14 +26,14 @@ beforeEach(() => {
 describe('following from a game card', () => {
   it('offers a star for each team', () => {
     wrap(<GameCard game={game} tz={TZ} />)
-    expect(screen.getByLabelText('Follow Minnesota Lynx')).toBeInTheDocument()
-    expect(screen.getByLabelText('Follow Seattle Storm')).toBeInTheDocument()
+    expect(screen.getByLabelText('Follow Minnesota Timberwolves')).toBeInTheDocument()
+    expect(screen.getByLabelText('Follow Los Angeles Lakers')).toBeInTheDocument()
   })
 
   it('toggles on click and reflects it in the label', async () => {
     wrap(<GameCard game={game} tz={TZ} />)
-    await userEvent.click(screen.getByLabelText('Follow Minnesota Lynx'))
-    const btn = screen.getByLabelText('Unfollow Minnesota Lynx')
+    await userEvent.click(screen.getByLabelText('Follow Minnesota Timberwolves'))
+    const btn = screen.getByLabelText('Unfollow Minnesota Timberwolves')
     expect(btn).toHaveAttribute('aria-pressed', 'true')
     expect(btn).toHaveTextContent('★')
   })
@@ -43,28 +43,28 @@ describe('following from a game card', () => {
   it('does not trigger the card while starring', async () => {
     const onOpen = vi.fn()
     wrap(<GameCard game={game} tz={TZ} onOpen={onOpen} />)
-    await userEvent.click(screen.getByLabelText('Follow Minnesota Lynx'))
+    await userEvent.click(screen.getByLabelText('Follow Minnesota Timberwolves'))
     expect(onOpen).not.toHaveBeenCalled()
 
     // …but the card itself still opens normally.
-    await userEvent.click(screen.getByText('Lynx'))
+    await userEvent.click(screen.getByText('Timberwolves'))
     expect(onOpen).toHaveBeenCalledTimes(1)
   })
 
   it('highlights the followed side', async () => {
     const { container } = wrap(<GameCard game={game} tz={TZ} />)
     expect(container.querySelector('.side.followed')).toBeNull()
-    await userEvent.click(screen.getByLabelText('Follow Minnesota Lynx'))
+    await userEvent.click(screen.getByLabelText('Follow Minnesota Timberwolves'))
     expect(container.querySelector('.side.followed')).toBeTruthy()
   })
 
   it('persists across a remount', async () => {
     const { unmount } = wrap(<GameCard game={game} tz={TZ} />)
-    await userEvent.click(screen.getByLabelText('Follow Minnesota Lynx'))
+    await userEvent.click(screen.getByLabelText('Follow Minnesota Timberwolves'))
     unmount()
 
     wrap(<GameCard game={game} tz={TZ} />)
-    expect(screen.getByLabelText('Unfollow Minnesota Lynx')).toHaveAttribute(
+    expect(screen.getByLabelText('Unfollow Minnesota Timberwolves')).toHaveAttribute(
       'aria-pressed',
       'true'
     )
@@ -100,7 +100,7 @@ describe('following is shared across views', () => {
 describe('following from the standings', () => {
   it('stars a team and marks the row', async () => {
     const { container } = wrap(<StandingsView games={GAMES} />)
-    const star = screen.getByLabelText('Follow Minnesota Lynx')
+    const star = screen.getByLabelText('Follow Minnesota Timberwolves')
     await userEvent.click(star)
     expect(container.querySelector('tr.row-followed')).toBeTruthy()
   })
@@ -115,7 +115,7 @@ describe('the follow store', () => {
         <span data-testid="list">{[...followed].sort().join(',')}</span>
         <span data-testid="has-min">{String(isFollowed('MIN'))}</span>
         <button onClick={() => toggle('MIN')}>min</button>
-        <button onClick={() => toggle('SEA')}>sea</button>
+        <button onClick={() => toggle('LAL')}>lal</button>
         <button onClick={clear}>clear</button>
       </div>
     )
@@ -126,9 +126,9 @@ describe('the follow store', () => {
     const count = () => screen.getByTestId('count').textContent
 
     await userEvent.click(screen.getByText('min'))
-    await userEvent.click(screen.getByText('sea'))
+    await userEvent.click(screen.getByText('lal'))
     expect(count()).toBe('2')
-    expect(screen.getByTestId('list').textContent).toBe('MIN,SEA')
+    expect(screen.getByTestId('list').textContent).toBe('LAL,MIN')
 
     await userEvent.click(screen.getByText('min')) // toggles back off
     expect(count()).toBe('1')
@@ -147,6 +147,6 @@ describe('the follow store', () => {
   it('renders standalone without a provider', () => {
     // The inert fallback keeps components usable in isolation and in tests.
     render(<GameCard game={game} tz={TZ} />)
-    expect(screen.getByLabelText('Follow Minnesota Lynx')).toBeInTheDocument()
+    expect(screen.getByLabelText('Follow Minnesota Timberwolves')).toBeInTheDocument()
   })
 })

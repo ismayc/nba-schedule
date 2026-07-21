@@ -7,6 +7,18 @@ import { GAMES } from '../src/data/schedule.js'
 const TZ = 'America/New_York'
 const open = (props = {}) => render(<WeekView games={GAMES} tz={TZ} {...props} />)
 
+// "Today" (mid-2026) sits in the offseason after the committed 2025-26 schedule, so the
+// view opens on an empty week where only Previous is live. Walk back until a week with
+// games appears — the last week of the season — to exercise navigation from inside it.
+const stepIntoSeason = async () => {
+  for (let i = 0; i < 60; i++) {
+    if (document.querySelector('.wk-game')) return
+    const prev = screen.getByLabelText('Previous week')
+    if (prev.disabled) return
+    await userEvent.click(prev)
+  }
+}
+
 describe('WeekView', () => {
   it('lays out seven day columns, Sunday first', () => {
     const { container } = open()
@@ -24,11 +36,13 @@ describe('WeekView', () => {
     const { container } = open()
     const label = () => container.querySelector('.sub').textContent
 
+    // Step into the season first, where both directions are live.
+    await stepIntoSeason()
     const start = label()
-    await userEvent.click(screen.getByLabelText('Next week'))
+    await userEvent.click(screen.getByLabelText('Previous week'))
     expect(label()).not.toBe(start)
 
-    await userEvent.click(screen.getByLabelText('Previous week'))
+    await userEvent.click(screen.getByLabelText('Next week'))
     expect(label()).toBe(start)
   })
 
@@ -43,7 +57,7 @@ describe('WeekView', () => {
   it('stops navigating past the ends of the season', async () => {
     const { container } = open()
     // Walk backwards well past the season opener; the control must disable.
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
       const prev = screen.getByLabelText('Previous week')
       if (prev.disabled) break
       await userEvent.click(prev)
@@ -78,6 +92,7 @@ describe('WeekView', () => {
   it('opens a game', async () => {
     const onOpen = vi.fn()
     const { container } = open({ onOpen })
+    await stepIntoSeason()
     await userEvent.click(container.querySelector('.wk-game'))
     expect(onOpen).toHaveBeenCalled()
   })

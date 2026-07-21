@@ -1,22 +1,26 @@
 // Playoff bracket.
 //
-// The structural difference from a knockout tournament: every slot is a best-of
-// SERIES, not a single game. A slot is therefore derived by grouping games by round
-// and opponent pair, then counting wins.
+// Two structural facts drive this:
+//   1. Every slot is a best-of-SEVEN SERIES, not a single game — so a slot is derived by
+//      grouping games by round + opponent pair and counting wins.
+//   2. The NBA runs TWO conference brackets (East and West) into the Finals, each fixed
+//      by seed and NOT re-seeded between rounds:
+//         R1:   1v8   4v5   2v7   3v6
+//         CSF:  winner(1v8) vs winner(4v5)  |  winner(2v7) vs winner(3v6)
+//         CF:   the two conference-semifinal winners
+//      then Final: East champion vs West champion.
 //
-// The NBA bracket is fixed by seed, not re-seeded between rounds:
-//   R1:  1v8   4v5   2v7   3v6
-//   SF:  winner(1v8) vs winner(4v5)   |   winner(2v7) vs winner(3v6)
-//   F:   the two semifinal winners
-// Confirmed against the 2025 postseason, where MIN (1) met PHX (4) and LV (2) met
-// IND (3) in the semifinals.
+// Seeds 7–8 in each conference are settled by a play-in (7–10), so the ACTUAL lower seed
+// in an R1 series can differ from the regular-season standings. Real series are therefore
+// located by their play-in-IMMUNE higher seed (1/2/3/4), never by the lower one.
 
-import { seedings } from './standings.js'
+import { conferenceStandings } from './standings.js'
 import { SERIES_LENGTH, PLAYOFF_ROUNDS } from '../data/schedule.js'
 
 export { PLAYOFF_ROUNDS, SERIES_LENGTH }
 
-// Seed pairings for the first round, in bracket order (top half then bottom half).
+// First-round seed pairings, in bracket order (top half then bottom half). The first
+// entry of each pair is the higher (host) seed.
 export const R1_PAIRS = [
   [1, 8],
   [4, 5],
@@ -24,7 +28,7 @@ export const R1_PAIRS = [
   [3, 6],
 ]
 
-const winsNeeded = (round) => Math.ceil((SERIES_LENGTH[round] ?? 3) / 2)
+const winsNeeded = (round) => Math.ceil((SERIES_LENGTH[round] ?? 7) / 2)
 
 const pairKey = (a, b) => [a, b].sort().join('|')
 
@@ -61,7 +65,7 @@ export function buildSeries(games) {
       ...s,
       wins,
       need,
-      bestOf: SERIES_LENGTH[s.round] ?? 3,
+      bestOf: SERIES_LENGTH[s.round] ?? 7,
       winner,
       loser: winner ? s.teams.find((t) => t !== winner) : null,
       // Ordered [higher seed, lower seed] for display.
@@ -72,125 +76,125 @@ export function buildSeries(games) {
   })
 }
 
-const findSeries = (list, round, a, b) =>
-  a && b ? list.find((s) => s.round === round && s.key === `${round}:${pairKey(a, b)}`) : undefined
+const winnerOf = (slotObj) => slotObj?.winner ?? null
 
-// Build the seven bracket slots. Where real playoff games exist they drive the slot;
-// where they don't, the slot is PROJECTED from current regular-season seeding — which
-// is what makes this view useful in July rather than only in September.
+// The one series in `round` that includes `abbr` — used to locate a slot by a participant
+// we already know (a higher seed, or a resolved winner feeding the next round).
+const findContaining = (series, round, abbr) =>
+  abbr ? series.find((s) => s.round === round && s.teams.includes(abbr)) : undefined
+
+// An empty slot shell carrying whatever labels feed it, when no real series exists yet.
+const emptySlot = (round, a, b, meta = {}) => ({
+  key: `${round}:${a || '?'}|${b || '?'}`,
+  round,
+  teams: [a, b].filter(Boolean),
+  order: [a, b],
+  games: [],
+  wins: Object.fromEntries([a, b].filter(Boolean).map((t) => [t, 0])),
+  need: winsNeeded(round),
+  bestOf: SERIES_LENGTH[round] ?? 7,
+  winner: null,
+  loser: null,
+  complete: false,
+  live: false,
+  projected: true,
+  ...meta,
+})
+
+// Resolve one slot: a real series if one exists for the anchor team, otherwise a
+// projected shell of `a` vs `b`.
+function resolveSlot(series, round, anchor, a, b, meta = {}) {
+  const real = findContaining(series, round, anchor)
+  if (real) return { ...real, ...meta, projected: false }
+  return emptySlot(round, a, b, meta)
+}
+
+// Build one conference's bracket (R1 → CSF → CF) from its top-8 seeds and the real
+// series. Slots resolve to real series when the games exist, and project from seeding
+// otherwise — which is what makes this view useful in October, not only in April.
+function buildConferenceBracket(conf, seeds, series) {
+  const bySeed = Object.fromEntries(seeds.map((r) => [r.seed, r]))
+  const feeder = (seed) => `${seed} seed`
+
+  const r1 = R1_PAIRS.map(([hi, lo], i) => {
+    const anchor = bySeed[hi]?.abbr // higher seed is play-in-immune
+    return resolveSlot(series, 'R1', anchor, bySeed[hi]?.abbr, bySeed[lo]?.abbr, {
+      conf,
+      index: i,
+      seeds: [hi, lo],
+      feeders: [feeder(hi), feeder(lo)],
+    })
+  })
+
+  const label = (s) => (s.seeds ? `Winner ${s.seeds[0]}/${s.seeds[1]}` : 'Winner')
+  const csfPairs = [
+    [0, 1],
+    [2, 3],
+  ]
+  const csf = csfPairs.map(([i, j], k) => {
+    const a = winnerOf(r1[i])
+    const b = winnerOf(r1[j])
+    const anchor = a ?? b // whichever winner is known locates the series
+    return resolveSlot(series, 'CSF', anchor, a, b, {
+      conf,
+      index: k,
+      from: [r1[i], r1[j]],
+      feeders: [label(r1[i]), label(r1[j])],
+      hiSeed: r1[i].seeds?.[0],
+    })
+  })
+
+  const a = winnerOf(csf[0])
+  const b = winnerOf(csf[1])
+  const cf = resolveSlot(series, 'CF', a ?? b, a, b, {
+    conf,
+    index: 0,
+    from: csf,
+    feeders: ['Conf. semifinal winner', 'Conf. semifinal winner'],
+  })
+
+  return { conf, seeds, r1, csf, cf, champion: cf.winner }
+}
+
+// The whole postseason: two conference brackets and the Finals between their champions.
+// `playIn` carries seeds 7–10 of each conference for the play-in display.
 export function buildBracket(games) {
+  const byConf = conferenceStandings(games)
   const series = buildSeries(games)
-  const seeded = seedings(games)
-  const bySeed = Object.fromEntries(seeded.map((r) => [r.seed, r]))
-
   const projected = series.length === 0
 
-  // A slot resolves to a real series when its two teams are known and have played;
-  // otherwise it's an empty shell carrying the labels of whatever feeds it.
-  const slot = (round, a, b, meta = {}) => {
-    const real = findSeries(series, round, a, b)
-    if (real) return { ...real, ...meta, projected: false }
-    return {
-      key: `${round}:${a || '?'}|${b || '?'}`,
-      round,
-      teams: [a, b].filter(Boolean),
-      order: [a, b],
-      games: [],
-      wins: Object.fromEntries([a, b].filter(Boolean).map((t) => [t, 0])),
-      need: winsNeeded(round),
-      bestOf: SERIES_LENGTH[round] ?? 3,
-      winner: null,
-      loser: null,
-      complete: false,
-      live: false,
-      projected: true,
-      ...meta,
-    }
-  }
+  const E = buildConferenceBracket('E', byConf.E.slice(0, 8), series)
+  const W = buildConferenceBracket('W', byConf.W.slice(0, 8), series)
 
-  // Normally the first round is located by seed: slot 0 is the 1v8 series, and so on.
-  // But seeding comes from regular-season records, so a game list containing only
-  // playoff games (a fixture, or a mid-postseason feed) can't resolve it, and the
-  // bracket would come back empty despite the series plainly existing. The fallback
-  // below recovers position from the semifinals instead.
-  const bySeedSlots = R1_PAIRS.map(([hi, lo], i) =>
-    slot('R1', bySeed[hi]?.abbr, bySeed[lo]?.abbr, {
-      seeds: [hi, lo],
-      index: i,
-      feeders: [`${hi} seed`, `${lo} seed`],
-    })
-  )
-
-  const actualR1 = series
-    .filter((s) => s.round === 'R1')
-    .sort((a, b) => (a.games[0]?.tip || '').localeCompare(b.games[0]?.tip || ''))
-  const actualSF = series.filter((s) => s.round === 'SF')
-
-  const seedLookupWorked = bySeedSlots.filter((s) => !s.projected).length === actualR1.length
-
-  // Without seeding, bracket POSITION still has to come from somewhere — and it isn't
-  // chronology (in 2025 the 4v5 series ran third, not second). The semifinals reveal
-  // it: each one names the two first-round winners that feed it, which is exactly the
-  // adjacency the bracket encodes.
-  const orderFromSemis = () => {
-    const feeding = (sf) => actualR1.filter((r) => r.winner && sf.teams.includes(r.winner))
-    const ordered = actualSF.flatMap(feeding)
-    return ordered.length === actualR1.length ? ordered : null
-  }
-
-  const r1 = seedLookupWorked
-    ? bySeedSlots
-    : (orderFromSemis() ?? actualR1).map((s, i) => ({
-        ...s,
-        index: i,
-        seeds: bySeedSlots[i]?.seeds,
-      }))
-
-  // Semifinal feeders name the round-1 matchups they come from, so an unresolved
-  // slot still reads as "Winner 1/8" rather than blank.
-  const feeder = (s) => (s?.seeds ? `Winner ${s.seeds[0]}/${s.seeds[1]}` : 'Winner')
-
-  const sf = [
-    slot('SF', r1[0].winner, r1[1].winner, {
-      index: 0,
-      feeders: [feeder(r1[0]), feeder(r1[1])],
-      from: [r1[0], r1[1]],
-    }),
-    slot('SF', r1[2].winner, r1[3].winner, {
-      index: 1,
-      feeders: [feeder(r1[2]), feeder(r1[3])],
-      from: [r1[2], r1[3]],
-    }),
-  ]
-
-  const final = slot('Final', sf[0].winner, sf[1].winner, {
+  const a = E.champion
+  const b = W.champion
+  const final = resolveSlot(series, 'Final', a ?? b, a, b, {
     index: 0,
-    feeders: ['Semifinal winner', 'Semifinal winner'],
-    from: [sf[0], sf[1]],
+    from: [E.cf, W.cf],
+    feeders: ['East champion', 'West champion'],
   })
 
   return {
     projected,
-    rounds: { R1: r1, SF: sf, Final: [final] },
+    conferences: { E, W },
+    final,
     champion: final.winner,
-    seeded: seeded.slice(0, 8),
+    playIn: { E: byConf.E.slice(6, 10), W: byConf.W.slice(6, 10) },
+    seeds: { E: byConf.E.slice(0, 8), W: byConf.W.slice(0, 8) },
   }
 }
 
 // ── Radial geometry ──────────────────────────────────────────────────────────
-// Kept here rather than in the component so it can be tested without a DOM.
-//
-// The eight seeds sit on the outer ring and winners advance inward, so distance
-// from the centre reads directly as "how far they got". Each match sits at the
-// angular midpoint of its two children:
+// Kept here rather than in the component so it can be tested without a DOM. One wheel
+// per conference: eight seeds on the outer ring advancing inward to the conference
+// champion at the centre. Same 8→4→2→1 geometry as a single knockout, so a conference
+// renders as one wheel and the two wheels flank the Finals.
 //
 //   R1 matches → 90° (top), 0° (right), 270° (bottom), 180° (left)
 //   Semifinals → 45° (upper right), 225° (lower left)
-//
-// which puts the two finalists on opposite sides of the centre.
 
 export const CENTER = 50
-export const RING = { leaf: 41, R1: 29, SF: 17 }
+export const RING = { leaf: 41, R1: 29, CSF: 17 }
 
 // Seed order around the ring, matching the fixed bracket: 1v8, 4v5 | 2v7, 3v6.
 export const LEAF_SEEDS = [1, 8, 4, 5, 2, 7, 3, 6]
@@ -215,10 +219,10 @@ export function layout() {
     r: RING.R1,
     children: [leaves[i * 2], leaves[i * 2 + 1]],
   }))
-  const sf = [0, 1].map((i) => ({
+  const csf = [0, 1].map((i) => ({
     angle: midAngle(r1[i * 2].angle, r1[i * 2 + 1].angle),
-    r: RING.SF,
+    r: RING.CSF,
     children: [r1[i * 2], r1[i * 2 + 1]],
   }))
-  return { leaves, r1, sf }
+  return { leaves, r1, csf }
 }

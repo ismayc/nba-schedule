@@ -1230,19 +1230,48 @@ select:hover,
   font-size: 15px;
 }
 
+/* Two conference fans flanking the Finals. Scrolls inside itself on narrow screens
+   rather than pushing the page wide. */
 .bx {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 10px;
   margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.bx-conf {
+  min-width: 0;
+}
+
+.bx-conf-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, var(--text-faint));
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.bx-rounds {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mirror the West so its Conference Finals sits next to the centre Finals. */
+.bx-conf-west .bx-rounds {
+  flex-direction: row-reverse;
 }
 
 .bx-col {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-width: 0;
+  min-width: 132px;
 }
 
 .bx-round {
@@ -1417,12 +1446,77 @@ select:hover,
   font-variant-numeric: tabular-nums;
 }
 
+.bx-playin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 20px;
+}
+
+.bx-playin-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.bx-playin .bx-field {
+  columns: 1;
+  margin-bottom: 0;
+}
+
 /* ── Radial bracket ─────────────────────────────────────────────────── */
+/* Two conference wheels flanking the Finals indicator; wraps on narrow screens. */
+.rb-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rb-wheel {
+  flex: 1 1 320px;
+  max-width: 460px;
+  min-width: 0;
+}
+
+.rb-conf-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, var(--text-faint));
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.rb-final {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 2px solid var(--gold);
+  background: var(--card);
+}
+
+.rb-final-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
 .rb {
   position: relative;
-  width: min(100%, 620px);
+  width: 100%;
   aspect-ratio: 1;
-  margin: 0 auto 16px;
+  margin: 0 auto;
 }
 
 .rb-lines {
@@ -1521,12 +1615,12 @@ select:hover,
 
 @media (max-width: 760px) {
   .bx {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    /* Keep the fan intact but let it scroll horizontally inside its own box. */
+    justify-content: flex-start;
   }
 
-  .bx-col-final {
-    order: -1;
+  .bx-col {
+    min-width: 116px;
   }
 }
 

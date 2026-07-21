@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { buildBracket, layout, polar, CENTER, RING } from '../utils/bracket.js'
+import { CONFERENCES } from '../utils/standings.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
@@ -25,41 +26,25 @@ function Node({ pos, abbr, label, size, className = '', title, onClick, dim }) {
   )
 }
 
-export default function RadialBracket({ games, onPick }) {
-  const bracket = useMemo(() => buildBracket(games), [games])
-  const geo = useMemo(layout, [])
+// One conference is a full 8→4→2→1 wheel: seeds on the outer ring, advancing inward to
+// the conference champion at the centre. The two wheels flank the Finals indicator.
+function ConferenceWheel({ conf, data, seeds, geo, onPick }) {
   const [hover, setHover] = useState(null)
-
-  const { rounds, champion, projected, seeded } = bracket
-  const bySeed = Object.fromEntries(seeded.map((r) => [r.seed, r]))
+  const bySeed = Object.fromEntries(seeds.map((r) => [r.seed, r]))
 
   const lines = [
     ...geo.r1.flatMap((m, i) =>
       m.children.map((c) => ({ from: c, to: m, key: `r1-${i}-${c.seed}` }))
     ),
-    ...geo.sf.flatMap((s, i) => s.children.map((c, j) => ({ from: c, to: s, key: `sf-${i}-${j}` }))),
-    ...geo.sf.map((s, i) => ({ from: s, to: { angle: 0, r: 0 }, key: `f-${i}` })),
+    ...geo.csf.flatMap((s, i) =>
+      s.children.map((c, j) => ({ from: c, to: s, key: `csf-${i}-${j}` }))
+    ),
+    ...geo.csf.map((s, i) => ({ from: s, to: { angle: 0, r: 0 }, key: `f-${i}` })),
   ]
 
   return (
-    <section className="view">
-      <div className="view-head">
-        <div>
-          <h2>Radial bracket</h2>
-          <p className="sub">
-            Seeds on the outside, the title in the middle. Every round advances one ring
-            inward.
-          </p>
-        </div>
-      </div>
-
-      {projected && (
-        <p className="banner">
-          <strong>Projected</strong> from the current standings — the postseason
-          hasn&apos;t started.
-        </p>
-      )}
-
+    <div className="rb-wheel">
+      <h3 className="rb-conf-title">{CONFERENCES[conf]}</h3>
       <div className="rb" onMouseLeave={() => setHover(null)}>
         <svg className="rb-lines" viewBox="0 0 100 100" aria-hidden="true">
           {lines.map(({ from, to, key }) => {
@@ -69,11 +54,11 @@ export default function RadialBracket({ games, onPick }) {
           })}
           <circle cx={CENTER} cy={CENTER} r={RING.leaf} className="rb-ring" />
           <circle cx={CENTER} cy={CENTER} r={RING.R1} className="rb-ring" />
-          <circle cx={CENTER} cy={CENTER} r={RING.SF} className="rb-ring" />
+          <circle cx={CENTER} cy={CENTER} r={RING.CSF} className="rb-ring" />
         </svg>
 
-        {/* Outer ring — the eight seeds */}
-        {geo.leaves.map((leaf, i) => {
+        {/* Outer ring — the eight conference seeds */}
+        {geo.leaves.map((leaf) => {
           const row = bySeed[leaf.seed]
           const abbr = row?.abbr
           return (
@@ -82,10 +67,12 @@ export default function RadialBracket({ games, onPick }) {
                 pos={leaf}
                 abbr={abbr}
                 label={`${leaf.seed}`}
-                size={34}
+                size={30}
                 className="rb-leaf"
                 dim={hover && hover !== abbr}
-                title={row ? `${leaf.seed}. ${row.team.displayName} (${row.w}–${row.l})` : undefined}
+                title={
+                  row ? `${leaf.seed}. ${row.team.displayName} (${row.w}–${row.l})` : undefined
+                }
                 onClick={onPick}
               />
               <span
@@ -103,14 +90,14 @@ export default function RadialBracket({ games, onPick }) {
 
         {/* First-round winners */}
         {geo.r1.map((pos, i) => {
-          const w = rounds.R1[i]?.winner
+          const w = data.r1[i]?.winner
           return (
             <span key={`r1-${i}`} onMouseEnter={() => w && setHover(w)}>
               <Node
                 pos={pos}
                 abbr={w}
                 label="—"
-                size={30}
+                size={26}
                 className="rb-r1"
                 dim={hover && hover !== w}
                 onClick={onPick}
@@ -119,17 +106,17 @@ export default function RadialBracket({ games, onPick }) {
           )
         })}
 
-        {/* Semifinal winners */}
-        {geo.sf.map((pos, i) => {
-          const w = rounds.SF[i]?.winner
+        {/* Conference-semifinal winners */}
+        {geo.csf.map((pos, i) => {
+          const w = data.csf[i]?.winner
           return (
-            <span key={`sf-${i}`} onMouseEnter={() => w && setHover(w)}>
+            <span key={`csf-${i}`} onMouseEnter={() => w && setHover(w)}>
               <Node
                 pos={pos}
                 abbr={w}
                 label="—"
-                size={30}
-                className="rb-sf"
+                size={26}
+                className="rb-csf"
                 dim={hover && hover !== w}
                 onClick={onPick}
               />
@@ -137,8 +124,53 @@ export default function RadialBracket({ games, onPick }) {
           )
         })}
 
-        {/* Centre */}
+        {/* Centre — the conference champion */}
         <div className="rb-center">
+          {data.champion ? (
+            <>
+              <TeamLogo abbr={data.champion} size={38} />
+              <span className="rb-champ">{TEAM_BY_ABBR[data.champion]?.name}</span>
+            </>
+          ) : (
+            <span className="rb-tbd">—</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function RadialBracket({ games, onPick }) {
+  const bracket = useMemo(() => buildBracket(games), [games])
+  const geo = useMemo(layout, [])
+
+  const { conferences, champion, projected } = bracket
+
+  return (
+    <section className="view">
+      <div className="view-head">
+        <div>
+          <h2>Radial bracket</h2>
+          <p className="sub">
+            One wheel per conference — seeds on the outside, that conference&apos;s champion
+            in the middle. Every round advances one ring inward; the two champions meet in
+            the Finals.
+          </p>
+        </div>
+      </div>
+
+      {projected && (
+        <p className="banner">
+          <strong>Projected</strong> from the current standings — the postseason
+          hasn&apos;t started.
+        </p>
+      )}
+
+      <div className="rb-pair">
+        <ConferenceWheel conf="E" data={conferences.E} seeds={bracket.seeds.E} geo={geo} onPick={onPick} />
+
+        <div className="rb-final">
+          <span className="rb-final-label">NBA Finals</span>
           {champion ? (
             <>
               <TeamLogo abbr={champion} size={44} />
@@ -148,6 +180,8 @@ export default function RadialBracket({ games, onPick }) {
             <span className="rb-trophy">🏆</span>
           )}
         </div>
+
+        <ConferenceWheel conf="W" data={conferences.W} seeds={bracket.seeds.W} geo={geo} onPick={onPick} />
       </div>
     </section>
   )

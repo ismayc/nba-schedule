@@ -85,17 +85,21 @@ describe('App', () => {
     // The filter row only exists on the schedule and week views.
     window.history.replaceState(null, '', '/?team=MIN')
     await mount()
-    expect(screen.getByDisplayValue('Minnesota Lynx')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Minnesota Timberwolves')).toBeInTheDocument()
   })
 
   it('filters the schedule by team', async () => {
+    // The committed season is complete, so reveal past days to have games on screen.
+    // Start filtered to one team (a small slate) and clear it to the full slate, so the
+    // interaction runs against the small DOM rather than the whole ~1,200-game season.
+    window.history.replaceState(null, '', '/?past=1&team=MIN')
     await mount()
-    const before = document.querySelectorAll('.game').length
-    await userEvent.selectOptions(screen.getByLabelText('Team'), 'MIN')
-    await waitFor(() => expect(search().get('team')).toBe('MIN'))
     const after = document.querySelectorAll('.game').length
     expect(after).toBeGreaterThan(0)
-    expect(after).toBeLessThan(before)
+    await userEvent.selectOptions(screen.getByLabelText('Team'), '')
+    await waitFor(() => expect(search().get('team')).toBeNull())
+    const before = document.querySelectorAll('.game').length
+    expect(before).toBeGreaterThan(after)
   })
 
   describe('my services', () => {
@@ -113,6 +117,9 @@ describe('App', () => {
 
     it('narrows the schedule to watchable games and remembers the choice', async () => {
       localStorage.setItem('nba:services', JSON.stringify(['youtubetv', 'prime', 'peacock']))
+      // Reveal past days (completed season) and scope to one team so the toggle acts on a
+      // small slate rather than the whole ~1,200-game season.
+      window.history.replaceState(null, '', '/?past=1&team=MIN')
       await mount()
       const before = document.querySelectorAll('.game').length
       const btn = screen.getByRole('button', { name: /On my services/ })
@@ -195,17 +202,18 @@ describe('App', () => {
   })
 
   describe('the live overlay', () => {
-    it('polls on mount', async () => {
+    // The committed data is a finished season, so the app deliberately never polls: the
+    // overlay only exists to merge in-progress scores, and there are none.
+    it('stays idle once the season is complete', async () => {
       await mount()
-      await waitFor(() => expect(fetch).toHaveBeenCalled())
-      // Three days of scoreboard per refresh.
-      expect(fetch.mock.calls.length).toBe(3)
+      await act(async () => {})
+      expect(fetch).not.toHaveBeenCalled()
     })
 
-    it('still renders the committed season when the feed is down', async () => {
-      fetch.mockRejectedValue(new Error('offline'))
+    it('still renders the committed season without any live feed', async () => {
+      window.history.replaceState(null, '', '/?past=1')
       await mount()
-      await waitFor(() => expect(fetch).toHaveBeenCalled())
+      await act(async () => {})
       expect(document.querySelectorAll('.game').length).toBeGreaterThan(0)
     })
   })
@@ -216,8 +224,9 @@ describe('App', () => {
       await mount()
       await userEvent.click(document.querySelector('.team-btn'))
       const panel = screen.getByRole('dialog')
-      // The panel has several heading levels; the team name is the h3.
-      expect(within(panel).getByRole('heading', { level: 3 })).toHaveTextContent(/Lynx/)
+      // The panel has several heading levels; the team name is the h3. Detroit is the
+      // East #1 seed, so it's the first team button in the standings.
+      expect(within(panel).getByRole('heading', { level: 3 })).toHaveTextContent(/Pistons/)
 
       await userEvent.click(within(panel).getByRole('button', { name: 'Close' }))
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -226,6 +235,8 @@ describe('App', () => {
 
   describe('game detail', () => {
     it('opens when a game is clicked', async () => {
+      // Reveal past days so the completed season shows a game to click.
+      window.history.replaceState(null, '', '/?past=1')
       await mount()
       await userEvent.click(document.querySelector('.game'))
       expect(screen.getByRole('dialog', { name: 'Game detail' })).toBeInTheDocument()

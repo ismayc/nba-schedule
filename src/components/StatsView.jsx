@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { seasonTotals, teamScoring, leaderboard, LEADER_CATEGORIES } from '../utils/stats.js'
-import { playoffRace, PLAYOFF_SPOTS } from '../utils/standings.js'
+import { playoffRace, PLAYOFF_SPOTS, CONFERENCES } from '../utils/standings.js'
 import { formatDate } from '../utils/time.js'
 import TeamLogo from './TeamLogo.jsx'
 
@@ -212,35 +212,27 @@ function statusOf(row) {
   return row.inPlayoffs ? STATUS.in : STATUS.chasing
 }
 
-function PlayoffRace({ games, onPickTeam }) {
-  const rows = useMemo(() => playoffRace(games), [games])
-  const cut = rows[PLAYOFF_SPOTS - 1]
-
+function ConfRace({ rows, cut, onPickTeam }) {
   return (
-    <div className="card">
-      <h3 className="card-title">Playoff race</h3>
-      <p className="fine top">
-        Top {PLAYOFF_SPOTS} by record make the postseason, regardless of conference.
-        {cut && ` The cut sits at ${cut.w}–${cut.l} (${cut.team.name}).`}
-      </p>
-      <div className="table-scroll">
-        <table className="standings race">
-          <thead>
-            <tr>
-              <th className="num">#</th>
-              <th>Team</th>
-              <th className="num">W–L</th>
-              <th className="num">Left</th>
-              <th className="num" title="Wins needed to guarantee a spot">Magic</th>
-              <th className="num hide-sm">GB cut</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const st = statusOf(r)
-              return (
-                <tr key={r.abbr} className={r.eliminated ? 'row-elim' : ''}>
+    <div className="table-scroll">
+      <table className="standings race">
+        <thead>
+          <tr>
+            <th className="num">#</th>
+            <th>Team</th>
+            <th className="num">W–L</th>
+            <th className="num">Left</th>
+            <th className="num" title="Wins needed to guarantee a spot">Magic</th>
+            <th className="num hide-sm">GB cut</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const st = statusOf(r)
+            return (
+              <Fragment key={r.abbr}>
+                <tr className={r.eliminated ? 'row-elim' : ''}>
                   <td className="num dim">{r.seed}</td>
                   <td>
                     <button className="team-btn" onClick={() => onPickTeam?.(r.abbr)}>
@@ -262,11 +254,52 @@ function PlayoffRace({ games, onPickTeam }) {
                     </span>
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                {r.seed === PLAYOFF_SPOTS && (
+                  <tr className="cutline">
+                    <td colSpan={7}>
+                      <span>
+                        Playoff cut — top {PLAYOFF_SPOTS}
+                        {cut && ` · sits at ${cut.w}–${cut.l} (${cut.team.name})`}
+                      </span>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// The race is run inside each conference: the eight seeds come from the East and the
+// eight from the West, never pooled league-wide. Seeds 7–10 land in the play-in.
+function PlayoffRace({ games, onPickTeam }) {
+  const rows = useMemo(() => playoffRace(games), [games])
+  const byConf = useMemo(() => {
+    const g = { E: [], W: [] }
+    for (const r of rows) g[r.conf]?.push(r)
+    for (const c of ['E', 'W']) g[c].sort((a, b) => a.seed - b.seed)
+    return g
+  }, [rows])
+
+  return (
+    <div className="card">
+      <h3 className="card-title">Playoff race</h3>
+      <p className="fine top">
+        Each conference races for its own eight seeds — 1–6 in outright, 7–10 into the play-in.
+      </p>
+      {Object.entries(CONFERENCES).map(([key, label]) => (
+        <Fragment key={key}>
+          <h4 className="md-sub">{label}</h4>
+          <ConfRace
+            rows={byConf[key]}
+            cut={byConf[key][PLAYOFF_SPOTS - 1]}
+            onPickTeam={onPickTeam}
+          />
+        </Fragment>
+      ))}
     </div>
   )
 }

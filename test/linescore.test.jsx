@@ -8,7 +8,9 @@ import { GAMES } from '../src/data/schedule.js'
 
 const TZ = 'America/New_York'
 const withLine = GAMES.find((g) => g.line && !g.ot)
-const otGame = GAMES.find((g) => g.line && g.ot)
+// A single-overtime game: its extra column is labelled plainly "OT". (Multi-OT games
+// number their periods OT2, OT3 — covered by the livePeriod suite below.)
+const otGame = GAMES.find((g) => g.line && g.ot === 1)
 
 const open = (game, props = {}) =>
   render(<GameDetail game={game} games={GAMES} tz={TZ} onClose={() => {}} {...props} />)

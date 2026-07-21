@@ -14,7 +14,9 @@ const build = (games) => buildIcs(games, { now: NOW })
 const lines = (ics) => ics.split('\r\n')
 
 const played = GAMES.find((g) => g.score && g.venue)
-const upcoming = GAMES.find((g) => !g.score && !g.postponed)
+// The committed season is complete; synthesise an unplayed game (no score) from a real
+// one so the "upcoming" branch still has something to exercise.
+const upcoming = { ...played, id: 'upcoming-1', score: undefined }
 
 describe('escapeText', () => {
   it('escapes the RFC 5545 delimiters', () => {

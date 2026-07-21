@@ -17,21 +17,30 @@ beforeEach(() => {
 })
 
 describe('StandingsView', () => {
-  it('renders all 15 teams with the leader first', () => {
+  // Both conferences render at once; each is a 15-team table led by its #1 seed.
+  it('renders both conferences, 15 teams each, leaders first', () => {
     render(<StandingsView games={GAMES} />)
     const rows = screen.getAllByRole('row').filter((r) => within(r).queryByRole('button', { name: /Follow/ }))
-    expect(rows).toHaveLength(15)
-    expect(within(rows[0]).getByText('Lynx')).toBeInTheDocument()
+    expect(rows).toHaveLength(30)
+
+    const east = screen.getByText('Eastern Conference').closest('.card')
+    const eastRows = within(east)
+      .getAllByRole('row')
+      .filter((r) => within(r).queryByRole('button', { name: /Follow/ }))
+    expect(eastRows).toHaveLength(15)
+    // Detroit tops the East in the committed 2025-26 season.
+    expect(within(eastRows[0]).getByText('Pistons')).toBeInTheDocument()
   })
 
-  it('shows the playoff cutline after the 8th seed', () => {
+  it('shows the playoff cutline after the 8th seed and marks the play-in', () => {
     render(<StandingsView games={GAMES} />)
-    expect(screen.getByText(/top 8 make the postseason/i)).toBeInTheDocument()
+    // One banner per conference for each of the two cut lines.
+    expect(screen.getAllByText(/top 8 make the postseason/i)).toHaveLength(2)
+    expect(screen.getAllByText(/Play-in — seeds 7–10/i)).toHaveLength(2)
   })
 
-  it('switches to conference tables', async () => {
+  it('names both conferences', () => {
     render(<StandingsView games={GAMES} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Conference' }))
     expect(screen.getByText('Eastern Conference')).toBeInTheDocument()
     expect(screen.getByText('Western Conference')).toBeInTheDocument()
   })
@@ -39,10 +48,9 @@ describe('StandingsView', () => {
   it('calls onPick when a team is clicked', async () => {
     const onPick = vi.fn()
     const { container } = render(<StandingsView games={GAMES} onPick={onPick} />)
-    // Scoped to the team button — /Lynx/ alone also matches the "Follow Minnesota
-    // Lynx" star control in the same row.
+    // The first team button is the East #1 seed — Detroit.
     await userEvent.click(container.querySelector('.team-btn'))
-    expect(onPick).toHaveBeenCalledWith('MIN')
+    expect(onPick).toHaveBeenCalledWith('DET')
   })
 })
 
@@ -52,16 +60,16 @@ describe('GameCard', () => {
     tip: '2026-07-19T17:00:00.000Z',
     seasonType: 'regular',
     home: 'DAL',
-    away: 'LA',
+    away: 'LAL',
     score: [90, 82],
-    venue: 'College Park Center',
-    city: 'Arlington',
+    venue: 'American Airlines Center',
+    city: 'Dallas',
   }
 
   it('marks the winner and shows the final', () => {
     const { container } = render(<GameCard game={base} tz={TZ} />)
     expect(screen.getByText('Final')).toBeInTheDocument()
-    expect(container.querySelector('.side.winner .side-nick').textContent).toBe('Wings')
+    expect(container.querySelector('.side.winner .side-nick').textContent).toBe('Mavericks')
   })
 
   it('annotates overtime', () => {
@@ -133,6 +141,16 @@ describe('ScheduleView', () => {
   // today still counts as today.
   describe('past days', () => {
     const today = todayKey(TZ)
+    // The committed 2025-26 season is fully in the past, so add a game dated today to
+    // exercise the today/future split. A noon-UTC anchor keeps it on `today` in any tz.
+    const todayGame = {
+      id: 'today-1',
+      tip: `${today}T16:00:00.000Z`,
+      seasonType: 'regular',
+      home: 'MIN',
+      away: 'LAL',
+    }
+    const withToday = [...GAMES, todayGame]
     const keysOf = (c) =>
       [...c.querySelectorAll('.day')].map((d) => d.querySelector('.day-head span').textContent)
 
@@ -160,7 +178,7 @@ describe('ScheduleView', () => {
     it('keeps today visible in both states', () => {
       for (const showPast of [false, true]) {
         const { container, unmount } = render(
-          <ScheduleView games={GAMES} tz={TZ} showPast={showPast} />
+          <ScheduleView games={withToday} tz={TZ} showPast={showPast} />
         )
         // "Today" is the label the day header uses for the current date.
         expect(keysOf(container)).toContain('Today')
@@ -169,11 +187,11 @@ describe('ScheduleView', () => {
     })
 
     it('renders only future-or-today days when hiding', () => {
-      const { container } = render(<ScheduleView games={GAMES} tz={TZ} />)
+      const { container } = render(<ScheduleView games={withToday} tz={TZ} />)
       // The first rendered day must not precede today.
-      const firstGame = GAMES.filter((g) => dayKey(g.tip, TZ) >= today).sort((a, b) =>
-        a.tip.localeCompare(b.tip)
-      )[0]
+      const firstGame = withToday
+        .filter((g) => dayKey(g.tip, TZ) >= today)
+        .sort((a, b) => a.tip.localeCompare(b.tip))[0]
       expect(container.querySelectorAll('.day').length).toBeGreaterThan(0)
       expect(dayKey(firstGame.tip, TZ) >= today).toBe(true)
     })

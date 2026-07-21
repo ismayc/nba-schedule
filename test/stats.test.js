@@ -8,7 +8,7 @@ const game = (over) => ({
   seasonType: 'regular',
   tip: '2026-05-10T00:00:00.000Z',
   home: 'MIN',
-  away: 'SEA',
+  away: 'LAL',
   score: [90, 80],
   ...over,
 })
@@ -56,7 +56,7 @@ describe('seasonTotals', () => {
 describe('teamScoring', () => {
   it('ranks defense by fewest points allowed', () => {
     const rows = teamScoring([
-      game({ home: 'MIN', away: 'SEA', score: [90, 70] }),
+      game({ home: 'MIN', away: 'LAL', score: [90, 70] }),
       game({ home: 'NY', away: 'ATL', score: [100, 99] }),
     ])
     const min = rows.find((r) => r.abbr === 'MIN')
@@ -73,8 +73,8 @@ describe('teamScoring', () => {
   })
 
   it('omits teams that have not played', () => {
-    const rows = teamScoring([game({ home: 'MIN', away: 'SEA' })])
-    expect(rows.map((r) => r.abbr).sort()).toEqual(['MIN', 'SEA'])
+    const rows = teamScoring([game({ home: 'MIN', away: 'LAL' })])
+    expect(rows.map((r) => r.abbr).sort()).toEqual(['LAL', 'MIN'])
   })
 })
 
@@ -118,12 +118,12 @@ describe('the committed player table', () => {
 
   it('assigns every player to a real team', () => {
     const teams = new Set(PLAYERS.map((p) => p.team))
-    expect(teams.size).toBe(15)
+    expect(teams.size).toBe(30)
     expect(playersByTeam('MIN').length).toBeGreaterThan(0)
   })
 
   it('sorts a team roster by scoring', () => {
-    const roster = playersByTeam('LV')
+    const roster = playersByTeam('MIN')
     for (let i = 1; i < roster.length; i++) {
       expect(roster[i - 1].avgPoints).toBeGreaterThanOrEqual(roster[i].avgPoints)
     }

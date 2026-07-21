@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState } from 'react'
-import { conferenceStandings, playoffRace, CONFERENCES, PLAYOFF_SPOTS } from '../utils/standings.js'
+import { Fragment, useMemo } from 'react'
+import { conferenceStandings, CONFERENCES, PLAYOFF_SPOTS } from '../utils/standings.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
 
@@ -82,7 +82,10 @@ function Row({ row, rank, onPick }) {
   )
 }
 
-function Table({ caption, rows, rankKey, onPick, cutAfter }) {
+// The playoff picture is per-conference: seeds 1–6 are locked into the postseason,
+// seeds 7–10 fall into the play-in, and the eight seed is the cut. Two thin banner rows
+// carry that structure without needing colour to explain it.
+function Table({ caption, rows, rankKey, onPick }) {
   return (
     <div className="card">
       <h3 className="card-title">{caption}</h3>
@@ -106,18 +109,28 @@ function Table({ caption, rows, rankKey, onPick, cutAfter }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <Fragment key={row.abbr}>
-                <Row row={row} rank={row[rankKey]} onPick={onPick} />
-                {cutAfter === i + 1 && (
-                  <tr className="cutline">
-                    <td colSpan={11}>
-                      <span>Playoff cut — top {PLAYOFF_SPOTS} make the postseason</span>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
+            {rows.map((row, i) => {
+              const seed = i + 1
+              return (
+                <Fragment key={row.abbr}>
+                  <Row row={row} rank={row[rankKey]} onPick={onPick} />
+                  {seed === 6 && (
+                    <tr className="cutline">
+                      <td colSpan={11}>
+                        <span>Play-in — seeds 7–10</span>
+                      </td>
+                    </tr>
+                  )}
+                  {seed === PLAYOFF_SPOTS && (
+                    <tr className="cutline">
+                      <td colSpan={11}>
+                        <span>Playoff cut — top {PLAYOFF_SPOTS} make the postseason</span>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -126,8 +139,6 @@ function Table({ caption, rows, rankKey, onPick, cutAfter }) {
 }
 
 export default function StandingsView({ games, onPick }) {
-  const [mode, setMode] = useState('league')
-  const league = useMemo(() => playoffRace(games), [games])
   const byConf = useMemo(() => conferenceStandings(games), [games])
 
   return (
@@ -136,35 +147,18 @@ export default function StandingsView({ games, onPick }) {
         <div>
           <h2>Regular Season</h2>
           <p className="sub">
-            The NBA seeds its playoff field <strong>1–8 league-wide</strong> — conference decides
-            nothing but bragging rights.
+            The NBA seeds each conference on its own: the <strong>top 8 in each</strong> reach the
+            postseason. Seeds 1–6 are in outright; seeds <strong>7–10 meet in the play-in</strong>{' '}
+            (7 v 8 and 9 v 10, then the 7/8 loser hosts the 9/10 winner) for the last two spots.
           </p>
-        </div>
-        <div className="seg">
-          <button className={mode === 'league' ? 'on' : ''} onClick={() => setMode('league')}>
-            League
-          </button>
-          <button className={mode === 'conf' ? 'on' : ''} onClick={() => setMode('conf')}>
-            Conference
-          </button>
         </div>
       </div>
 
-      {mode === 'league' ? (
-        <Table
-          caption="Playoff seeding"
-          rows={league}
-          rankKey="seed"
-          onPick={onPick}
-          cutAfter={PLAYOFF_SPOTS}
-        />
-      ) : (
-        <div className="grid-2">
-          {Object.entries(CONFERENCES).map(([key, label]) => (
-            <Table key={key} caption={label} rows={byConf[key]} rankKey="confRank" onPick={onPick} />
-          ))}
-        </div>
-      )}
+      <div className="grid-2">
+        {Object.entries(CONFERENCES).map(([key, label]) => (
+          <Table key={key} caption={label} rows={byConf[key]} rankKey="confRank" onPick={onPick} />
+        ))}
+      </div>
     </section>
   )
 }

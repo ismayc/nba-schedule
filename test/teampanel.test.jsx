@@ -13,6 +13,14 @@ const open = (abbr = 'MIN', props = {}) =>
     </FollowProvider>
   )
 
+// The committed season is complete, so no team has an unplayed game. Tests that need
+// the "Next up" section supply a schedule padded with a couple of future games.
+const upcomingFor = (abbr) => [
+  ...GAMES,
+  { id: `up-${abbr}-1`, tip: '2026-08-01T23:00:00.000Z', seasonType: 'regular', home: abbr, away: 'BOS' },
+  { id: `up-${abbr}-2`, tip: '2026-08-03T23:00:00.000Z', seasonType: 'regular', home: 'BOS', away: abbr },
+]
+
 describe('TeamPanel', () => {
   it('renders nothing without a team', () => {
     const { container } = render(<TeamPanel abbr={null} games={GAMES} tz={TZ} />)
@@ -21,11 +29,11 @@ describe('TeamPanel', () => {
 
   it('shows the team, record, conference, and seed', () => {
     open('MIN')
-    expect(screen.getByRole('dialog', { name: 'Minnesota Lynx' })).toBeInTheDocument()
-    // Verified against ESPN: Minnesota leads the league at 20-6.
-    expect(screen.getByText(/20–6/)).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Minnesota Timberwolves' })).toBeInTheDocument()
+    // Verified against ESPN: Minnesota finishes 49-33, the West's 6 seed.
+    expect(screen.getByText(/49–33/)).toBeInTheDocument()
     expect(screen.getByText(/Western Conference/)).toBeInTheDocument()
-    expect(screen.getByText(/seed 1/)).toBeInTheDocument()
+    expect(screen.getByText(/seed 6/)).toBeInTheDocument()
   })
 
   it('shows the six headline splits', () => {
@@ -54,7 +62,7 @@ describe('TeamPanel', () => {
   })
 
   it('lists leading scorers in descending order', () => {
-    const { container } = open('LV')
+    const { container } = open('MIN')
     const lines = [...container.querySelectorAll('.tp-p-line')].map((n) =>
       Number(n.textContent.split(' ')[0])
     )
@@ -65,7 +73,7 @@ describe('TeamPanel', () => {
   })
 
   it('lists only unplayed games under Next up', () => {
-    open('MIN')
+    open('MIN', { games: upcomingFor('MIN') })
     const list = screen.getByText('Next up').nextElementSibling
     const rows = list.querySelectorAll('li')
     expect(rows.length).toBeGreaterThan(0)
@@ -73,7 +81,7 @@ describe('TeamPanel', () => {
   })
 
   it('marks each upcoming game as home or away', () => {
-    open('MIN')
+    open('MIN', { games: upcomingFor('MIN') })
     const list = screen.getByText('Next up').nextElementSibling
     for (const li of list.querySelectorAll('li')) {
       expect(['vs', 'at']).toContain(within(li).getByText(/^(vs|at)$/).textContent)
@@ -116,7 +124,10 @@ describe('TeamPanel', () => {
   })
 
   it('works for every team in the league', () => {
-    for (const abbr of ['ATL', 'CHI', 'CON', 'DAL', 'GS', 'IND', 'LA', 'LV', 'MIN', 'NY', 'PHX', 'POR', 'SEA', 'TOR', 'WSH']) {
+    const abbrs = ['ATL', 'BKN', 'BOS', 'CHA', 'CHI', 'CLE', 'DAL', 'DEN', 'DET', 'GS',
+      'HOU', 'IND', 'LAC', 'LAL', 'MEM', 'MIA', 'MIL', 'MIN', 'NO', 'NY', 'OKC', 'ORL',
+      'PHI', 'PHX', 'POR', 'SA', 'SAC', 'TOR', 'UTAH', 'WSH']
+    for (const abbr of abbrs) {
       const { unmount } = open(abbr)
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       unmount()

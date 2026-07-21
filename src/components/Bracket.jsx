@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { buildBracket, PLAYOFF_ROUNDS } from '../utils/bracket.js'
+import { CONFERENCES } from '../utils/standings.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { formatDate } from '../utils/time.js'
 import { useFollow } from '../context/follow.jsx'
@@ -88,9 +89,38 @@ function Series({ series, onPick, tz }) {
   )
 }
 
+// One conference's fixed fan: First Round (4) → Conference Semifinals (2) → Conference
+// Finals (1). The `conf` flag lets the West mirror so both conference finals sit next to
+// the Finals in the centre.
+function ConferenceBracket({ conf, data, onPick, tz }) {
+  return (
+    <div className={`bx-conf bx-conf-${conf === 'E' ? 'east' : 'west'}`}>
+      <h3 className="bx-conf-title">{CONFERENCES[conf]}</h3>
+      <div className="bx-rounds">
+        <div className="bx-col">
+          <h4 className="bx-round">{PLAYOFF_ROUNDS.R1}</h4>
+          {data.r1.map((s, i) => (
+            <Series key={i} series={s} onPick={onPick} tz={tz} />
+          ))}
+        </div>
+        <div className="bx-col">
+          <h4 className="bx-round">{PLAYOFF_ROUNDS.CSF}</h4>
+          {data.csf.map((s, i) => (
+            <Series key={i} series={s} onPick={onPick} tz={tz} />
+          ))}
+        </div>
+        <div className="bx-col bx-col-cf">
+          <h4 className="bx-round">{PLAYOFF_ROUNDS.CF}</h4>
+          <Series series={data.cf} onPick={onPick} tz={tz} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Bracket({ games, tz, onPick }) {
   const bracket = useMemo(() => buildBracket(games), [games])
-  const { rounds, champion, projected, seeded } = bracket
+  const { conferences, final, champion, projected, playIn } = bracket
 
   return (
     <section className="view">
@@ -98,9 +128,10 @@ export default function Bracket({ games, tz, onPick }) {
         <div>
           <h2>Playoffs</h2>
           <p className="sub">
-            Eight teams, seeded 1–8 by record. First round is best-of-3, semifinals
-            best-of-5, the Finals best-of-7. The bracket is fixed — semifinal pairings
-            don&apos;t re-seed.
+            Eight teams per conference: seeds 1–6 qualify outright, seeds 7–8 come through
+            a play-in among 7–10. Every round is best-of-7 and the bracket is fixed —
+            1v8, 4v5, 2v7, 3v6, no re-seeding. The two conference champions meet in the
+            Finals.
           </p>
         </div>
       </div>
@@ -119,45 +150,40 @@ export default function Bracket({ games, tz, onPick }) {
       )}
 
       <div className="bx">
-        <div className="bx-col">
-          <h4 className="bx-round">{PLAYOFF_ROUNDS.R1}</h4>
-          <Series series={rounds.R1[0]} onPick={onPick} tz={tz} />
-          <Series series={rounds.R1[1]} onPick={onPick} tz={tz} />
+        <ConferenceBracket conf="E" data={conferences.E} onPick={onPick} tz={tz} />
+
+        <div className="bx-conf bx-conf-final">
+          <h3 className="bx-conf-title">{PLAYOFF_ROUNDS.Final}</h3>
+          <div className="bx-col bx-col-final">
+            <Series series={final} onPick={onPick} tz={tz} />
+          </div>
         </div>
-        <div className="bx-col bx-col-mid">
-          <h4 className="bx-round">{PLAYOFF_ROUNDS.SF}</h4>
-          <Series series={rounds.SF[0]} onPick={onPick} tz={tz} />
-        </div>
-        <div className="bx-col bx-col-final">
-          <h4 className="bx-round">{PLAYOFF_ROUNDS.Final}</h4>
-          <Series series={rounds.Final[0]} onPick={onPick} tz={tz} />
-        </div>
-        <div className="bx-col bx-col-mid">
-          <h4 className="bx-round">{PLAYOFF_ROUNDS.SF}</h4>
-          <Series series={rounds.SF[1]} onPick={onPick} tz={tz} />
-        </div>
-        <div className="bx-col">
-          <h4 className="bx-round">{PLAYOFF_ROUNDS.R1}</h4>
-          <Series series={rounds.R1[2]} onPick={onPick} tz={tz} />
-          <Series series={rounds.R1[3]} onPick={onPick} tz={tz} />
-        </div>
+
+        <ConferenceBracket conf="W" data={conferences.W} onPick={onPick} tz={tz} />
       </div>
 
       {projected && (
         <div className="card">
-          <h3 className="card-title">The field, as it stands</h3>
-          <ol className="bx-field">
-            {seeded.map((r) => (
-              <li key={r.abbr}>
-                <span className="bx-field-seed">{r.seed}</span>
-                <TeamLogo abbr={r.abbr} size={20} />
-                <span>{r.team.name}</span>
-                <span className="dim">
-                  {r.w}–{r.l}
-                </span>
-              </li>
+          <h3 className="card-title">Play-in — seeds 7 to 10</h3>
+          <div className="bx-playin">
+            {['E', 'W'].map((c) => (
+              <div key={c} className="bx-playin-conf">
+                <h4 className="bx-playin-title">{CONFERENCES[c]}</h4>
+                <ol className="bx-field">
+                  {playIn[c].map((r) => (
+                    <li key={r.abbr}>
+                      <span className="bx-field-seed">{r.seed}</span>
+                      <TeamLogo abbr={r.abbr} size={20} />
+                      <span>{r.team.name}</span>
+                      <span className="dim">
+                        {r.w}–{r.l}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
       )}
     </section>
