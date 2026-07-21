@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-// The game detail mounts Lineups, which fetches the ESPN summary. These wiring tests
-// don't exercise lineups (they have their own suite), so stub it to keep the fetch
-// call count deterministic and the tests off the network.
-vi.mock('../src/components/Lineups.jsx', () => ({ default: () => null }))
+// The game detail fetches the ESPN summary on open. These wiring tests don't exercise
+// the summary sections (they have their own suite), so stub the service to keep the
+// fetch call count deterministic and the tests off the network.
+vi.mock('../src/services/summary.js', () => ({ fetchGameSummary: () => Promise.resolve(null) }))
 import App from '../src/App.jsx'
 import { FollowProvider } from '../src/context/follow.jsx'
 import { ServicesProvider } from '../src/context/services.jsx'
@@ -167,6 +167,25 @@ describe('App', () => {
       const count = Number(within(btn).getByText(/^\d+$/).textContent)
       expect(count).toBeGreaterThan(0)
     })
+
+    it('remembers the choice per-device in localStorage', async () => {
+      await mount()
+      await userEvent.click(screen.getByRole('button', { name: /past days/ }))
+      await waitFor(() => expect(localStorage.getItem('nba:showPast')).toBe('1'))
+    })
+
+    it('restores from localStorage when the link says nothing', async () => {
+      localStorage.setItem('nba:showPast', '1')
+      await mount()
+      expect(screen.getByRole('button', { name: /past days/ })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('lets an explicit ?past= in a shared link override the saved preference', async () => {
+      localStorage.setItem('nba:showPast', '1')
+      window.history.replaceState(null, '', '/?past=0')
+      await mount()
+      expect(screen.getByRole('button', { name: /past days/ })).toHaveAttribute('aria-pressed', 'false')
+    })
   })
 
   describe('spoiler-free mode', () => {
@@ -177,6 +196,25 @@ describe('App', () => {
       await userEvent.click(btn)
       await waitFor(() => expect(search().get('hide')).toBe('1'))
       expect(btn).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('also remembers the choice per-device in localStorage', async () => {
+      await mount()
+      await userEvent.click(screen.getByTitle('Spoiler-free mode'))
+      await waitFor(() => expect(localStorage.getItem('nba:spoilerFree')).toBe('1'))
+    })
+
+    it('restores from localStorage when the link says nothing', async () => {
+      localStorage.setItem('nba:spoilerFree', '1')
+      await mount()
+      expect(screen.getByTitle('Spoiler-free mode')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('lets an explicit ?hide= in a shared link override the saved preference', async () => {
+      localStorage.setItem('nba:spoilerFree', '1')
+      window.history.replaceState(null, '', '/?hide=0')
+      await mount()
+      expect(screen.getByTitle('Spoiler-free mode')).toHaveAttribute('aria-pressed', 'false')
     })
   })
 

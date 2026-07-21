@@ -41,12 +41,29 @@ export default function App() {
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'dark')
   const [view, setView] = useState(initial.view)
   const [tz, setTz] = useState(initial.tz || detectedTz)
-  const [hideScores, setHideScores] = useState(initial.hide)
+  // Spoiler-free mode is remembered per-device like a followed team, but a shared
+  // link's explicit ?hide= still wins on load so the sender's choice carries over.
+  const [hideScores, setHideScores] = useState(() => {
+    if (initial.hideExplicit) return initial.hide
+    try {
+      return localStorage.getItem('nba:spoilerFree') === '1'
+    } catch {
+      return false
+    }
+  })
   const [team, setTeam] = useState(initial.team)
   const [onlyFollowed, setOnlyFollowed] = useState(initial.mine)
-  // Hidden by default: 194 of this season's 332 games are already played, so opening
-  // on the season opener in May would bury today under months of finals.
-  const [showPast, setShowPast] = useState(initial.past)
+  // Off by default (194 of this season's 332 games are already played, so opening on the
+  // season opener in May would bury today under months of finals), but remembered
+  // per-device once toggled — like spoiler-free mode. A shared ?past= still wins on load.
+  const [showPast, setShowPast] = useState(() => {
+    if (initial.pastExplicit) return initial.past
+    try {
+      return localStorage.getItem('nba:showPast') === '1'
+    } catch {
+      return false
+    }
+  })
   // "Only games I can watch" — filters to games on the viewer's chosen services (see
   // the services context). Off by default, but remembered across visits in localStorage
   // like a followed team rather than living in the shareable URL.
@@ -141,6 +158,25 @@ export default function App() {
   useEffect(() => {
     writeState({ view, tz, team, hide: hideScores, mine: onlyFollowed, past: showPast }, detectedTz)
   }, [view, tz, team, hideScores, onlyFollowed, showPast, detectedTz])
+
+  // Remember spoiler-free mode per-device, like a followed team (theme and alerts persist
+  // the same way). A shared ?hide= link still overrides this on load.
+  useEffect(() => {
+    try {
+      localStorage.setItem('nba:spoilerFree', hideScores ? '1' : '0')
+    } catch {
+      /* private mode — the preference just won't persist */
+    }
+  }, [hideScores])
+
+  // Same for the "show past days" toggle — remembered per-device, ?past= still overrides.
+  useEffect(() => {
+    try {
+      localStorage.setItem('nba:showPast', showPast ? '1' : '0')
+    } catch {
+      /* private mode — the preference just won't persist */
+    }
+  }, [showPast])
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'

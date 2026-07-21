@@ -8,8 +8,10 @@ describe('readState', () => {
       tz: null,
       team: '',
       hide: false,
+      hideExplicit: false,
       mine: false,
       past: false,
+      pastExplicit: false,
     })
   })
 
@@ -19,8 +21,10 @@ describe('readState', () => {
       tz: 'America/Chicago',
       team: 'MIN',
       hide: true,
+      hideExplicit: true,
       mine: true,
       past: true,
+      pastExplicit: true,
     })
   })
 
@@ -66,11 +70,16 @@ describe('toSearch', () => {
     const state = {
       view: 'playoffs',
       tz: 'Europe/London',
-      team: 'LV',
+      team: 'BOS',
       hide: true,
       mine: true,
       past: true,
     }
-    expect(readState(toSearch(state, detected))).toEqual(state)
+    // readState also reports whether hide/past were explicit; toSearch wrote them, so both are.
+    expect(readState(toSearch(state, detected))).toEqual({
+      ...state,
+      hideExplicit: true,
+      pastExplicit: true,
+    })
   })
 })
