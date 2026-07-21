@@ -17,6 +17,7 @@ import WeekView from './components/WeekView.jsx'
 import CalendarModal from './components/CalendarModal.jsx'
 import Toasts from './components/Toasts.jsx'
 import TeamPanel from './components/TeamPanel.jsx'
+import PlayerModal from './components/PlayerModal.jsx'
 import ServicesModal from './components/ServicesModal.jsx'
 import { detectEvents, eventKey } from './services/alerts.js'
 import TeamLogo from './components/TeamLogo.jsx'
@@ -87,6 +88,7 @@ export default function App() {
   })
   const [toasts, setToasts] = useState([])
   const [teamPanel, setTeamPanel] = useState(null)
+  const [playerModal, setPlayerModal] = useState(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const prevGames = useRef(null)
 
@@ -389,7 +391,12 @@ export default function App() {
           <RadialBracket games={games} onPick={setTeamPanel} />
         )}
         {view === 'stats' && (
-          <StatsView games={games} tz={tz} onPickTeam={setTeamPanel} />
+          <StatsView
+            games={games}
+            tz={tz}
+            onPickTeam={setTeamPanel}
+            onPickPlayer={setPlayerModal}
+          />
         )}
       </main>
 
@@ -408,6 +415,8 @@ export default function App() {
         onSchedule={(t) => (setTeam(t), setView('schedule'))}
         onOpenGame={(g) => (setTeamPanel(null), setDetail(g))}
       />
+
+      <PlayerModal player={playerModal} tz={tz} onClose={() => setPlayerModal(null)} />
 
       <GameDetail
         game={detail}
