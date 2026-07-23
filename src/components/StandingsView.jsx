@@ -37,6 +37,7 @@ function Row({ row, rank, onPick }) {
   const followed = isFollowed(row.abbr)
 
   return (
+    /* v8 ignore next -- row.eliminated is never set: StandingsView reads conferenceStandings, which (unlike playoffRace) computes no clinch/elimination status, so the row-elim branch is unreachable dead code */
     <tr className={`${followed ? 'row-followed' : ''} ${row.eliminated ? 'row-elim' : ''}`}>
       <td className="col-rank">
         <button
@@ -56,6 +57,7 @@ function Row({ row, rank, onPick }) {
             <span className="team-loc">{row.team.location}</span>{' '}
             <span className="team-nick">{row.team.name}</span>
           </span>
+          {/* v8 ignore start -- row.clinched/row.eliminated are never set: StandingsView reads conferenceStandings, which computes no clinch/elimination status (only playoffRace does), so these badges are unreachable dead code */}
           {row.clinched && (
             <span className="badge badge-in" title="Clinched a playoff spot">
               ✓
@@ -66,6 +68,7 @@ function Row({ row, rank, onPick }) {
               ✕
             </span>
           )}
+          {/* v8 ignore stop */}
         </button>
       </td>
       <td className="num">{row.w}</td>

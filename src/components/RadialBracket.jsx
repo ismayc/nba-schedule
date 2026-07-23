@@ -43,6 +43,7 @@ function Side({ geo, data, seeds, hover, setHover, onPick }) {
               size={28}
               className="rb-leaf"
               dim={hover && hover !== row?.abbr}
+              /* v8 ignore next -- every conference always seeds a full top-8 (computeStandings initialises all teams, slice(0,8) fills seeds 1–8), so bySeed[leaf.seed] always resolves a row; the `: undefined` branch is unreachable */
               title={row ? `${leaf.seed}. ${row.team.displayName} (${row.w}–${row.l})` : undefined}
               onClick={onPick}
               onHover={setHover}

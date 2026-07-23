@@ -48,6 +48,7 @@ function Side({ abbr, label, seed, wins, isWinner, decided, onPick }) {
   if (!team) {
     return (
       <div className="bx-side bx-empty">
+        {/* v8 ignore next -- buildBracket sets a feeder on every slot (R1 "N seed", CSF/CF "Winner…", Final "… champion"), so an empty side always has a label; the 'TBD' fallback guards a shape buildBracket never emits */}
         <span className="bx-feeder">{label || 'TBD'}</span>
       </div>
     )
@@ -141,6 +142,7 @@ function ConferenceBracket({ conf, data, onPick, tz }) {
 // list — the same pattern world-cup-viewer uses so the bracket needs no horizontal
 // scrolling on a phone. Each round shows both conferences' series under sub-headers.
 function MobileBracket({ rounds, active, setActive, onPick, tz }) {
+  /* v8 ignore next -- `active` is always one of the four round keys (initialised from a round key, only ever set to r.key), so find() never misses; the `|| rounds[0]` guard is unreachable */
   const round = rounds.find((r) => r.key === active) || rounds[0]
   return (
     <div className="bx-mobile">

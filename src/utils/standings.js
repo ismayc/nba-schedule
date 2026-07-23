@@ -211,7 +211,9 @@ export function conferenceStandings(games) {
       ...row,
       seed: i + 1,
       confRank: i + 1,
+      /* v8 ignore next -- `: 0` is unreachable: both conferences always contain teams, so `leader` is always defined */
       confGb: leader ? gamesBehind(leader, row) : 0,
+      /* v8 ignore next -- `: 0` is unreachable: both conferences always contain teams, so `leader` is always defined */
       gb: leader ? gamesBehind(leader, row) : 0,
       inPlayoffs: i < PLAYOFF_SPOTS,
       playIn: i + 1 >= 7 && i + 1 <= 10,
@@ -264,8 +266,10 @@ export function playoffRace(games) {
       // Clinched a play-in berth when even losing out still leaves the 11th-place team short.
       const clinched = firstOut
         ? row.w > firstOut.w + ((totals[firstOut.abbr] ?? 0) - firstOut.gp)
-        : false
+        : /* v8 ignore next -- unreachable: a 15-team conference always yields an 11th seed, so `firstOut` is always defined */
+          false
       // Eliminated when winning out still cannot reach the current 10th seed.
+      /* v8 ignore next -- `: false` is unreachable: a 15-team conference always yields a 10th seed, so `cut` is always defined */
       const eliminated = cut ? row.w + remaining < cut.w : false
       out.push({
         ...row,
@@ -273,6 +277,7 @@ export function playoffRace(games) {
         remaining,
         clinched,
         eliminated,
+        /* v8 ignore next -- `: 0` is unreachable: a 15-team conference always yields a 10th seed, so `cut` is always defined */
         gbCut: cut ? gamesBehind(cut, row) : 0,
         magic: row.seed <= PLAYIN_CUT_SEED && firstOut && !clinched ? magicNumber(row, firstOut, totals) : null,
       })
