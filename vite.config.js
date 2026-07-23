@@ -11,10 +11,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./test/setup.js'],
     // The committed 2025-26 season is ~1,320 games, so a few App integration tests
-    // render well over a thousand cards; under coverage instrumentation on CI's slower
-    // runners that overruns the 5s default. 30s gives ample headroom (they run in <7s).
-    testTimeout: 30000,
-    hookTimeout: 30000,
+    // render well over a thousand cards *twice* (filter toggles) under coverage
+    // instrumentation. On a loaded CI runner one such test was seen at ~53s, so give
+    // generous headroom — locally they run in <10s; this only guards runner variance.
+    testTimeout: 90000,
+    hookTimeout: 90000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'json'],
