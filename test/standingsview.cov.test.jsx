@@ -55,3 +55,34 @@ describe('StandingsView — streak and games-behind edge cases', () => {
     expect(container.querySelector('.row-followed')).toBeTruthy()
   })
 })
+
+// A fully-decided Eastern conference: every Eastern team's schedule is exhausted (0 games
+// remaining), so playoffRace resolves clinch/elimination for real. Ten teams go 1-0 and
+// five go 0-2 — with no games left the ten have clinched a play-in berth (more wins than
+// the 11th seed can reach) and the five are eliminated (can't reach the 10th seed's win).
+// This is what makes the ✓/✕ badges and row-elim styling render — they read row.clinched
+// and row.eliminated, which only a settled race sets. (The Western half stays 0-0, so its
+// rows keep the not-clinched/not-eliminated branches live in the same render.)
+const CLINCHERS = ['ATL', 'BKN', 'BOS', 'CHA', 'CHI', 'CLE', 'DET', 'IND', 'MIA', 'MIL']
+const LOSERS = ['NY', 'ORL', 'PHI', 'TOR', 'WSH']
+// Each loser drops both its games; each clincher wins exactly one of them. So every
+// Eastern team plays its whole (tiny) schedule — remaining goes to zero for all 15.
+const DECIDED = CLINCHERS.map((winner, i) =>
+  g(String(10 + i), winner, LOSERS[i % LOSERS.length], 112, 100)
+)
+
+describe('StandingsView — clinched and eliminated badges', () => {
+  it('shows the ✓/✕ badges and row-elim styling once the race is settled', () => {
+    const { container } = render(
+      <FollowProvider>
+        <StandingsView games={DECIDED} />
+      </FollowProvider>
+    )
+
+    // Ten Eastern teams clinched; five are eliminated.
+    expect(container.querySelectorAll('.badge-in').length).toBe(10)
+    expect(container.querySelectorAll('.badge-out').length).toBe(5)
+    // Eliminated teams carry the row-elim class.
+    expect(container.querySelectorAll('.row-elim').length).toBe(5)
+  })
+})

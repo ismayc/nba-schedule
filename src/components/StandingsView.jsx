@@ -1,5 +1,5 @@
 import { Fragment, useMemo } from 'react'
-import { conferenceStandings, CONFERENCES, PLAYIN_SEEDS } from '../utils/standings.js'
+import { playoffRace, CONFERENCES, PLAYIN_SEEDS } from '../utils/standings.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
 
@@ -37,7 +37,6 @@ function Row({ row, rank, onPick }) {
   const followed = isFollowed(row.abbr)
 
   return (
-    /* v8 ignore next -- row.eliminated is never set: StandingsView reads conferenceStandings, which (unlike playoffRace) computes no clinch/elimination status, so the row-elim branch is unreachable dead code */
     <tr className={`${followed ? 'row-followed' : ''} ${row.eliminated ? 'row-elim' : ''}`}>
       <td className="col-rank">
         <button
@@ -57,7 +56,6 @@ function Row({ row, rank, onPick }) {
             <span className="team-loc">{row.team.location}</span>{' '}
             <span className="team-nick">{row.team.name}</span>
           </span>
-          {/* v8 ignore start -- row.clinched/row.eliminated are never set: StandingsView reads conferenceStandings, which computes no clinch/elimination status (only playoffRace does), so these badges are unreachable dead code */}
           {row.clinched && (
             <span className="badge badge-in" title="Clinched a playoff spot">
               ✓
@@ -68,7 +66,6 @@ function Row({ row, rank, onPick }) {
               ✕
             </span>
           )}
-          {/* v8 ignore stop */}
         </button>
       </td>
       <td className="num">{row.w}</td>
@@ -147,7 +144,14 @@ function Table({ caption, rows, rankKey, onPick }) {
 }
 
 export default function StandingsView({ games, onPick }) {
-  const byConf = useMemo(() => conferenceStandings(games), [games])
+  // Source rows from playoffRace (not conferenceStandings) so each row carries the
+  // clinched/eliminated status the badges and row-elim styling read. playoffRace returns
+  // a flat, per-conference-seeded list; regroup it back into the two conference tables.
+  const byConf = useMemo(() => {
+    const groups = { E: [], W: [] }
+    for (const row of playoffRace(games)) groups[row.conf].push(row)
+    return groups
+  }, [games])
 
   return (
     <section className="view">
