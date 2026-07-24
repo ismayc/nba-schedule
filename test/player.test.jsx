@@ -147,6 +147,16 @@ describe('PlayerModal (component)', () => {
     expect(flag.style.display).toBe('none')
   })
 
+  it('forces whole-number split averages to one decimal', () => {
+    stub()
+    // A player whose per-game FG/3PT/FT splits land on whole numbers must still read
+    // "8.0-15.0", not "8-15", to match the decimal convention.
+    const whole = { ...player, avgFgMade: 8, avgFgAtt: 15, avgThreeMade: 2, avgThreeAtt: 5 }
+    render(<PlayerModal player={whole} tz="America/New_York" onClose={() => {}} />)
+    expect(screen.getByText(/FG 8.0-15.0/)).toBeInTheDocument()
+    expect(screen.getByText(/3PT 2.0-5.0/)).toBeInTheDocument()
+  })
+
   it('falls back to the player’s initials when the headshot 404s', () => {
     stub()
     const { container } = render(<PlayerModal player={player} tz="America/New_York" onClose={() => {}} />)
