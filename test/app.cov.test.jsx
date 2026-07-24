@@ -48,6 +48,10 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+// The team / my-teams / services controls live in a panel that's collapsed unless a
+// filter is already active on load; open it before reaching for anything inside.
+const openFilters = () => userEvent.click(screen.getByRole('button', { name: /⚙ Filters/ }))
+
 describe('localStorage unavailable (private mode)', () => {
   it('falls back to defaults when every init read throws', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
@@ -67,6 +71,7 @@ describe('localStorage unavailable (private mode)', () => {
     })
     // Mount alone runs the spoiler-free and show-past persistence effects' catches.
     await mount()
+    await openFilters()
 
     // Theme toggle write catch, both ternary directions (dark->light->dark).
     const themeBtn = screen.getByTitle('Toggle theme')
@@ -84,6 +89,18 @@ describe('localStorage unavailable (private mode)', () => {
 
     // Nothing escaped to the UI; the shell is still standing.
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+  })
+
+  it('swallows the write failure when Clear all resets the watch-only preference', async () => {
+    // A team applied on load auto-opens the panel and shows the "Clear all" action.
+    window.history.replaceState(null, '', '/?team=MIN')
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied')
+    })
+    await mount()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+    // The team filter is gone and the app is unharmed by the failed persist.
+    expect(screen.getByDisplayValue('All teams')).toBeInTheDocument()
   })
 })
 
@@ -133,6 +150,7 @@ describe('followed team filter', () => {
     // The completed season groups into collapsed months; expand them to count cards.
     for (const h of document.querySelectorAll('.month-head:not(.open)')) fireEvent.click(h)
     const before = document.querySelectorAll('.game').length
+    await openFilters()
     const chip = screen.getByRole('button', { name: /My teams \(1\)/ })
     await userEvent.click(chip)
     expect(chip).toHaveAttribute('aria-pressed', 'true')
@@ -146,6 +164,7 @@ describe('the services picker from an existing selection', () => {
   it('opens the editor from the gear button', async () => {
     localStorage.setItem('nba:services', JSON.stringify(['peacock']))
     await mount()
+    await openFilters()
     await userEvent.click(screen.getByRole('button', { name: 'Edit my services' }))
     expect(screen.getByRole('dialog', { name: 'My services' })).toBeInTheDocument()
   })
@@ -156,7 +175,8 @@ describe('clearing the team via the Clear chip', () => {
     window.history.replaceState(null, '', '/?team=MIN&past=1')
     await mount()
     expect(screen.getByDisplayValue('Minnesota Timberwolves')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /Clear/ }))
+    // The team-specific "Clear" chip, not the panel's "Clear all".
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
     await waitFor(() => expect(search().get('team')).toBeNull())
     expect(screen.getByDisplayValue('All teams')).toBeInTheDocument()
   })
