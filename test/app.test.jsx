@@ -169,7 +169,7 @@ describe('App', () => {
       await mount()
       // Recent view: a flat list, no month navigation.
       expect(document.querySelector('.month-jump')).toBeFalsy()
-      const btn = screen.getByRole('button', { name: /full season/i })
+      const btn = screen.getByRole('button', { name: /earlier games/i })
       expect(btn).toHaveAttribute('aria-pressed', 'false')
 
       await userEvent.click(btn)
@@ -182,28 +182,28 @@ describe('App', () => {
 
     it('reports how many days are hidden', async () => {
       await mount()
-      const btn = screen.getByRole('button', { name: /full season/i })
+      const btn = screen.getByRole('button', { name: /earlier games/i })
       const count = Number(within(btn).getByText(/^\d+$/).textContent)
       expect(count).toBeGreaterThan(0)
     })
 
     it('remembers the choice per-device in localStorage', async () => {
       await mount()
-      await userEvent.click(screen.getByRole('button', { name: /full season/i }))
+      await userEvent.click(screen.getByRole('button', { name: /earlier games/i }))
       await waitFor(() => expect(localStorage.getItem('nba:showPast')).toBe('1'))
     })
 
     it('restores from localStorage when the link says nothing', async () => {
       localStorage.setItem('nba:showPast', '1')
       await mount()
-      expect(screen.getByRole('button', { name: /full season/i })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: /earlier games/i })).toHaveAttribute('aria-pressed', 'true')
     })
 
     it('lets an explicit ?past= in a shared link override the saved preference', async () => {
       localStorage.setItem('nba:showPast', '1')
       window.history.replaceState(null, '', '/?past=0')
       await mount()
-      expect(screen.getByRole('button', { name: /full season/i })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: /earlier games/i })).toHaveAttribute('aria-pressed', 'false')
     })
   })
 
@@ -380,6 +380,41 @@ describe('filter panel', () => {
     await mount()
     expect(toggle()).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByLabelText('Search games')).toBeInTheDocument()
+  })
+
+  // The phase chips share their labels with the nav (🏆 Playoffs), so scope queries
+  // to the chip row.
+  const phaseChip = (name) =>
+    within(document.querySelector('.phase-chips')).getByRole('button', { name })
+
+  it('narrows the schedule to a chosen phase and back', async () => {
+    await mount()
+    const all = document.querySelectorAll('.game').length
+    expect(all).toBeGreaterThan(0)
+    await userEvent.click(toggle())
+
+    // The lone Cup game isn't in the recent window, so filtering to Cup hides every
+    // game currently shown (exercising both the keep and drop paths of the filter).
+    const cup = phaseChip('🏅 Cup')
+    await userEvent.click(cup)
+    expect(cup).toHaveAttribute('aria-pressed', 'true')
+    expect(document.querySelectorAll('.game').length).toBeLessThan(all)
+
+    // Deselecting restores the full list (empty phases = all).
+    await userEvent.click(cup)
+    expect(cup).toHaveAttribute('aria-pressed', 'false')
+    expect(document.querySelectorAll('.game').length).toBe(all)
+  })
+
+  it('counts an active phase filter on the badge and Clear all resets it', async () => {
+    await mount()
+    await userEvent.click(toggle())
+    await userEvent.click(phaseChip('🏆 Playoffs'))
+    expect(within(toggle()).getByText('1')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+    expect(phaseChip('🏆 Playoffs')).toHaveAttribute('aria-pressed', 'false')
+    expect(within(toggle()).queryByText('1')).not.toBeInTheDocument()
   })
 })
 
