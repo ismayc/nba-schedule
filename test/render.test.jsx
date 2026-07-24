@@ -230,6 +230,19 @@ describe('ScheduleView', () => {
       const { container } = render(<ScheduleView games={[]} tz={TZ} />)
       expect(container.querySelector('.empty')).toBeTruthy()
     })
+
+    it('falls back to the last week of games when the season is finished', () => {
+      // Everything well in the past (no recent, no upcoming) — instead of a blank default
+      // view, show the completed season's most recent game-days.
+      const finished = [
+        g('p1', shift(today, -40), 'MIN', 'NY', [80, 70]),
+        g('p2', shift(today, -35), 'BOS', 'LAL', [88, 84]),
+        g('p3', shift(today, -30), 'CHI', 'ATL', [70, 66]),
+      ]
+      const { container } = render(<ScheduleView games={finished} tz={TZ} />)
+      expect(container.querySelector('.empty')).toBeFalsy()
+      expect(container.querySelectorAll('.day')).toHaveLength(3)
+    })
   })
 
   describe('full season — collapsible months + jump bar', () => {
