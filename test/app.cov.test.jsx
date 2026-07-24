@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, within, waitFor } from '@testing-library/react'
+import { act, render, screen, within, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // Keep the game-detail summary and player log off the network and deterministic.
@@ -130,6 +130,8 @@ describe('followed team filter', () => {
     // The season is complete — reveal past days so there are cards to count.
     window.history.replaceState(null, '', '/?past=1')
     await mount()
+    // The completed season groups into collapsed months; expand them to count cards.
+    for (const h of document.querySelectorAll('.month-head:not(.open)')) fireEvent.click(h)
     const before = document.querySelectorAll('.game').length
     const chip = screen.getByRole('button', { name: /My teams \(1\)/ })
     await userEvent.click(chip)

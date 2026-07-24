@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import StandingsView from '../src/components/StandingsView.jsx'
 import ScheduleView from '../src/components/ScheduleView.jsx'
@@ -153,6 +153,9 @@ describe('StatsView leaders', () => {
 describe('ScheduleView', () => {
   it('groups games under day headings', () => {
     const { container } = render(<ScheduleView games={GAMES} tz={TZ} showPast />)
+    // The committed 2025-26 season is entirely in the past, so its months all start
+    // collapsed (the open current month holds no games). Expand one to see its days.
+    fireEvent.click(container.querySelector('.month-head'))
     expect(container.querySelectorAll('.day').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/game/).length).toBeGreaterThan(0)
   })
@@ -164,61 +167,131 @@ describe('ScheduleView', () => {
 
   // Past days are dropped whole rather than by tip-off time, so a game earlier
   // today still counts as today.
-  describe('past days', () => {
+  describe('recent window and full season', () => {
+    // Synthetic games placed RELATIVE to the real "today" (not the committed schedule),
+    // so the window math is deterministic whatever day the suite runs — no wall-clock
+    // flake, and no dependence on where the committed season sits.
     const today = todayKey(TZ)
-    // The committed 2025-26 season is fully in the past, so add a game dated today to
-    // exercise the today/future split. A noon-UTC anchor keeps it on `today` in any tz.
-    const todayGame = {
-      id: 'today-1',
-      tip: `${today}T16:00:00.000Z`,
-      seasonType: 'regular',
-      home: 'MIN',
-      away: 'LAL',
+    const shift = (key, delta) => {
+      const [y, m, d] = key.split('-').map(Number)
+      return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10)
     }
-    const withToday = [...GAMES, todayGame]
+    const g = (id, date, home, away, score) => ({
+      id,
+      tip: `${date}T16:00:00.000Z`, // noon ET — safely the same calendar day in TZ
+      seasonType: 'regular',
+      home,
+      away,
+      ...(score ? { score } : {}),
+    })
+    const dOld = shift(today, -14) // older than a week -> hidden by default
+    const dRecent = shift(today, -3) // within the last week -> shown by default
+    const dFuture = shift(today, 5)
+    const games = [
+      g('old', dOld, 'MIN', 'NY', [80, 70]),
+      g('recent', dRecent, 'BOS', 'LAL', [88, 84]),
+      g('today', today, 'CHI', 'ATL', [70, 66]),
+      g('future', dFuture, 'PHX', 'LAC'),
+    ]
     const keysOf = (c) =>
       [...c.querySelectorAll('.day')].map((d) => d.querySelector('.day-head span').textContent)
 
-    it('hides previous days by default', () => {
-      const { container } = render(<ScheduleView games={GAMES} tz={TZ} />)
-      const shown = new Set(
-        GAMES.filter((g) => dayKey(g.tip, TZ) >= today).map((g) => dayKey(g.tip, TZ))
+    it('defaults to the last week of results plus upcoming, hiding older days', () => {
+      const { container } = render(<ScheduleView games={games} tz={TZ} />)
+      // recent (−3), today, future (+5) show; the 14-days-ago game does not.
+      expect(container.querySelectorAll('.day')).toHaveLength(3)
+      expect(keysOf(container)).toContain('Today')
+      // The recent view is a plain list — no month machinery.
+      expect(container.querySelector('.month-jump')).toBeFalsy()
+    })
+
+    it('lands scrolled on the most recent past day (so yesterday is right there)', () => {
+      const spy = Element.prototype.scrollIntoView
+      render(<ScheduleView games={games} tz={TZ} />)
+      expect(spy).toHaveBeenCalled()
+    })
+
+    it('anchors on today when nothing is in the past', () => {
+      const spy = Element.prototype.scrollIntoView
+      render(
+        <ScheduleView games={[g('today', today, 'CHI', 'ATL', [70, 66]), g('future', dFuture, 'PHX', 'LAC')]} tz={TZ} />
       )
-      expect(container.querySelectorAll('.day')).toHaveLength(shown.size)
+      expect(spy).toHaveBeenCalled()
     })
 
-    it('reveals them when asked', () => {
-      const { container: hidden } = render(<ScheduleView games={GAMES} tz={TZ} />)
-      const nHidden = hidden.querySelectorAll('.day').length
-
-      const { container: shown } = render(<ScheduleView games={GAMES} tz={TZ} showPast />)
-      const nShown = shown.querySelectorAll('.day').length
-
-      expect(nShown).toBeGreaterThan(nHidden)
-      // Every day in the season is accounted for.
-      const allKeys = new Set(GAMES.map((g) => dayKey(g.tip, TZ)))
-      expect(nShown).toBe(allKeys.size)
+    it('does not scroll when no rendered day matches the anchor', () => {
+      const spy = Element.prototype.scrollIntoView
+      // Only a future day: anchor falls back to today, which has no rendered day.
+      render(<ScheduleView games={[g('future', dFuture, 'PHX', 'LAC')]} tz={TZ} />)
+      expect(spy).not.toHaveBeenCalled()
     })
 
-    it('keeps today visible in both states', () => {
-      for (const showPast of [false, true]) {
-        const { container, unmount } = render(
-          <ScheduleView games={withToday} tz={TZ} showPast={showPast} />
-        )
-        // "Today" is the label the day header uses for the current date.
-        expect(keysOf(container)).toContain('Today')
-        unmount()
-      }
+    it('shows an empty state when no games match', () => {
+      const { container } = render(<ScheduleView games={[]} tz={TZ} />)
+      expect(container.querySelector('.empty')).toBeTruthy()
+    })
+  })
+
+  describe('full season — collapsible months + jump bar', () => {
+    const today = todayKey(TZ)
+    const [Y, M, D] = today.split('-').map(Number)
+    // Days pinned to specific months relative to the current one, so month grouping is
+    // deterministic. inMonth(0, …) stays in the current month; ±1/±2 land in siblings.
+    const inMonth = (offset, day = 15) =>
+      new Date(Date.UTC(Y, M - 1 + offset, day)).toISOString().slice(0, 10)
+    const g = (id, date, home, away, score) => ({
+      id,
+      tip: `${date}T16:00:00.000Z`,
+      seasonType: 'regular',
+      home,
+      away,
+      ...(score ? { score } : {}),
+    })
+    const otherDay = D === 25 ? 5 : 25 // a second current-month day, guaranteed ≠ today
+    const games = [
+      g('m2', inMonth(-2), 'MIN', 'NY', [80, 70]),
+      g('m1', inMonth(-1), 'BOS', 'LAL', [88, 84]),
+      g('today', today, 'CHI', 'ATL', [70, 66]),
+      g('cur2', inMonth(0, otherDay), 'PHX', 'LAC', [90, 88]),
+      g('n1', inMonth(1), 'DAL', 'IND'),
+    ]
+    const view = () => render(<ScheduleView games={games} tz={TZ} showPast />)
+
+    it('renders a jump chip per month and opens only the current month', () => {
+      const { container } = view()
+      // Four distinct months -> four chips and four sections.
+      expect(container.querySelectorAll('.month-jump .month-chip')).toHaveLength(4)
+      expect(container.querySelectorAll('.month')).toHaveLength(4)
+      // Only the current month is open, so only its two days render.
+      expect(container.querySelectorAll('.month-days')).toHaveLength(1)
+      expect(container.querySelectorAll('.day')).toHaveLength(2)
+      // The current month's chip is flagged, and its header count is pluralized.
+      expect(container.querySelector('.month-chip.is-current')).toBeTruthy()
+      expect(container.querySelector('.month-head.open .month-count').textContent).toBe('2 games')
     })
 
-    it('renders only future-or-today days when hiding', () => {
-      const { container } = render(<ScheduleView games={withToday} tz={TZ} />)
-      // The first rendered day must not precede today.
-      const firstGame = withToday
-        .filter((g) => dayKey(g.tip, TZ) >= today)
-        .sort((a, b) => a.tip.localeCompare(b.tip))[0]
-      expect(container.querySelectorAll('.day').length).toBeGreaterThan(0)
-      expect(dayKey(firstGame.tip, TZ) >= today).toBe(true)
+    it('expands a collapsed month on click, then collapses the current one', () => {
+      const { container } = view()
+      const collapsed = [...container.querySelectorAll('.month-head')].find(
+        (h) => !h.classList.contains('open')
+      )
+      fireEvent.click(collapsed)
+      expect(container.querySelectorAll('.month-days')).toHaveLength(2)
+      expect(collapsed.querySelector('.month-count').textContent).toBe('1 game') // singular
+      // Collapsing the current month hides its days again.
+      fireEvent.click(container.querySelector('.month-head.open'))
+      expect(container.querySelectorAll('.month-days')).toHaveLength(1)
+    })
+
+    it('jumping to a month expands it and scrolls it into view', () => {
+      const spy = Element.prototype.scrollIntoView
+      const { container } = view()
+      const openedBefore = container.querySelectorAll('.month-days').length
+      const calledBefore = spy.mock.calls.length
+      // The first chip is the earliest month, which starts collapsed.
+      fireEvent.click(container.querySelector('.month-jump .month-chip'))
+      expect(container.querySelectorAll('.month-days').length).toBeGreaterThan(openedBefore)
+      expect(spy.mock.calls.length).toBeGreaterThan(calledBefore)
     })
   })
 })

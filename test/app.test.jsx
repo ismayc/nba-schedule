@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, within, waitFor } from '@testing-library/react'
+import { act, render, screen, within, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 // The game detail fetches the ESPN summary on open. These wiring tests don't exercise
 // the summary sections (they have their own suite), so stub the service to keep the
@@ -45,6 +45,13 @@ afterEach(() => {
 })
 
 const search = () => new URLSearchParams(window.location.search)
+
+// The committed 2025-26 season is entirely in the past, so Full season groups it into
+// collapsed month sections (the open current month holds no games). Expand every month
+// so the games are on screen the way these committed-data tests expect.
+const expandMonths = () => {
+  for (const h of document.querySelectorAll('.month-head:not(.open)')) fireEvent.click(h)
+}
 
 describe('App', () => {
   it('renders the shell and opens on the schedule', async () => {
@@ -95,6 +102,7 @@ describe('App', () => {
     // interaction runs against the small DOM rather than the whole ~1,200-game season.
     window.history.replaceState(null, '', '/?past=1&team=MIN')
     await mount()
+    expandMonths()
     const after = document.querySelectorAll('.game').length
     expect(after).toBeGreaterThan(0)
     await userEvent.selectOptions(screen.getByLabelText('Team'), '')
@@ -122,6 +130,7 @@ describe('App', () => {
       // small slate rather than the whole ~1,200-game season.
       window.history.replaceState(null, '', '/?past=1&team=MIN')
       await mount()
+      expandMonths()
       const before = document.querySelectorAll('.game').length
       const btn = screen.getByRole('button', { name: /On my services/ })
       expect(btn).toHaveAttribute('aria-pressed', 'false')
@@ -151,41 +160,45 @@ describe('App', () => {
   })
 
   describe('past days', () => {
-    it('hides them by default and reveals them on click', async () => {
+    it('switches to the month-grouped full season on click', async () => {
       await mount()
-      const before = document.querySelectorAll('.day').length
-      const btn = screen.getByRole('button', { name: /past days/ })
+      // Recent view: a flat list, no month navigation.
+      expect(document.querySelector('.month-jump')).toBeFalsy()
+      const btn = screen.getByRole('button', { name: /full season/i })
       expect(btn).toHaveAttribute('aria-pressed', 'false')
 
       await userEvent.click(btn)
       await waitFor(() => expect(search().get('past')).toBe('1'))
-      expect(document.querySelectorAll('.day').length).toBeGreaterThan(before)
+      // Full season: the sticky month jump-bar and collapsible month sections appear.
+      expect(document.querySelector('.month-jump')).toBeTruthy()
+      expect(document.querySelectorAll('.month').length).toBeGreaterThan(0)
+      expect(btn).toHaveAttribute('aria-pressed', 'true')
     })
 
     it('reports how many days are hidden', async () => {
       await mount()
-      const btn = screen.getByRole('button', { name: /past days/ })
+      const btn = screen.getByRole('button', { name: /full season/i })
       const count = Number(within(btn).getByText(/^\d+$/).textContent)
       expect(count).toBeGreaterThan(0)
     })
 
     it('remembers the choice per-device in localStorage', async () => {
       await mount()
-      await userEvent.click(screen.getByRole('button', { name: /past days/ }))
+      await userEvent.click(screen.getByRole('button', { name: /full season/i }))
       await waitFor(() => expect(localStorage.getItem('nba:showPast')).toBe('1'))
     })
 
     it('restores from localStorage when the link says nothing', async () => {
       localStorage.setItem('nba:showPast', '1')
       await mount()
-      expect(screen.getByRole('button', { name: /past days/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: /full season/i })).toHaveAttribute('aria-pressed', 'true')
     })
 
     it('lets an explicit ?past= in a shared link override the saved preference', async () => {
       localStorage.setItem('nba:showPast', '1')
       window.history.replaceState(null, '', '/?past=0')
       await mount()
-      expect(screen.getByRole('button', { name: /past days/ })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: /full season/i })).toHaveAttribute('aria-pressed', 'false')
     })
   })
 
@@ -253,6 +266,7 @@ describe('App', () => {
       window.history.replaceState(null, '', '/?past=1')
       await mount()
       await act(async () => {})
+      expandMonths()
       expect(document.querySelectorAll('.game').length).toBeGreaterThan(0)
     })
   })
@@ -277,6 +291,7 @@ describe('App', () => {
       // Reveal past days so the completed season shows a game to click.
       window.history.replaceState(null, '', '/?past=1')
       await mount()
+      expandMonths()
       await userEvent.click(document.querySelector('.game'))
       expect(screen.getByRole('dialog', { name: 'Game detail' })).toBeInTheDocument()
     })

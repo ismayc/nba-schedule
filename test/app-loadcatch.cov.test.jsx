@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, waitFor } from '@testing-library/react'
+import { act, render, waitFor, fireEvent } from '@testing-library/react'
 
 vi.mock('../src/services/summary.js', () => ({ fetchGameSummary: () => Promise.resolve(null) }))
 
@@ -67,6 +67,8 @@ describe('a rejecting live feed', () => {
     )
     await act(async () => {})
     await waitFor(() => expect(fetchLive).toHaveBeenCalled())
+    // The completed season is grouped into collapsed months; expand them for the cards.
+    for (const h of document.querySelectorAll('.month-head:not(.open)')) fireEvent.click(h)
     expect(document.querySelectorAll('.game').length).toBeGreaterThan(0)
   })
 })
