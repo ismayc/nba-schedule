@@ -15,6 +15,7 @@ import {
   dayLabel,
   countdown,
   liveState,
+  isUpNext,
   TIMEZONES,
 } from '../src/utils/time.js'
 import { writeState } from '../src/utils/urlState.js'
@@ -236,6 +237,40 @@ describe('liveState with an explicit clock (line 89)', () => {
     expect(liveState({ tip: TIP }, at(TIP) - 60_000)).toBe('upcoming')
     expect(liveState({ tip: TIP }, at(TIP) + 60_000)).toBe('likely-live')
     expect(liveState({ tip: TIP }, at(TIP) + GAME_MS + 1)).toBe('past')
+  })
+})
+
+describe('isUpNext — the next unplayed game for either team', () => {
+  const g = (id, tip, home, away, extra = {}) => ({ id, tip, home, away, seasonType: 'regular', ...extra })
+
+  it('is false with no game, a played game, or a void game', () => {
+    expect(isUpNext(null, [])).toBe(false)
+    expect(isUpNext(g('a', '2026-11-01T00:00:00Z', 'BOS', 'MIA', { score: [1, 2] }), [])).toBe(false)
+    expect(isUpNext(g('a', '2026-11-01T00:00:00Z', 'BOS', 'MIA', { postponed: true }), [])).toBe(false)
+    expect(isUpNext(g('a', '2026-11-01T00:00:00Z', 'BOS', 'MIA', { canceled: true }), [])).toBe(false)
+  })
+
+  it('is true for a team’s earliest unplayed game and false once an earlier one exists', () => {
+    const early = g('e', '2026-11-01T00:00:00Z', 'BOS', 'MIA')
+    const late = g('l', '2026-11-08T00:00:00Z', 'MIA', 'BOS')
+    const games = [early, late]
+    expect(isUpNext(early, games)).toBe(true) // next for both teams (away MIA short-circuits)
+    expect(isUpNext(late, games)).toBe(false) // both teams have the earlier game
+  })
+
+  it('qualifies via the home team when the away team plays sooner elsewhere', () => {
+    const miaEarlier = g('m', '2026-11-01T00:00:00Z', 'MIA', 'LAL') // MIA plays before this game
+    const target = g('t', '2026-11-03T00:00:00Z', 'BOS', 'MIA') // still BOS's next
+    // away (MIA) is not next → falls through to home (BOS), which is.
+    expect(isUpNext(target, [miaEarlier, target])).toBe(true)
+  })
+
+  it('skips played, void, and unrelated games when finding a team’s next', () => {
+    const target = g('t', '2026-11-05T00:00:00Z', 'BOS', 'MIA')
+    const playedEarlier = g('p', '2026-11-01T00:00:00Z', 'BOS', 'MIA', { score: [1, 2] })
+    const voidEarlier = g('v', '2026-11-02T00:00:00Z', 'MIA', 'BOS', { canceled: true })
+    const otherTeams = g('o', '2026-11-03T00:00:00Z', 'LAL', 'NYK')
+    expect(isUpNext(target, [playedEarlier, voidEarlier, otherTeams, target])).toBe(true)
   })
 })
 

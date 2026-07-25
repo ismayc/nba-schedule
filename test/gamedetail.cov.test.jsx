@@ -332,7 +332,7 @@ describe('GameDetail coverage', () => {
     )
   })
 
-  it('surfaces the injury report on the matchup tab', async () => {
+  it('surfaces the injury report only for the next upcoming matchup', async () => {
     fetchGameSummary.mockResolvedValue({
       box: null,
       teamStats: null,
@@ -340,8 +340,24 @@ describe('GameDetail coverage', () => {
       info: null,
       winprob: null,
     })
-    const game = {
-      id: 'inj1',
+    // An unplayed game that is the next one for both teams.
+    const next = { id: 'inj1', seasonType: 'regular', tip: '2026-11-01T00:00:00.000Z', home: 'BOS', away: 'MIA' }
+    render(<GameDetail game={next} games={[next]} tz={TZ} onClose={() => {}} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Matchup' }))
+    expect(await screen.findByRole('heading', { name: 'Injury report' })).toBeInTheDocument()
+    expect(screen.getByText('Jimmy Butler')).toBeInTheDocument()
+  })
+
+  it('hides the injury report for a game that has already been played', async () => {
+    fetchGameSummary.mockResolvedValue({
+      box: null,
+      teamStats: null,
+      injuries: [{ abbr: 'MIA', players: [{ name: 'Jimmy Butler', pos: 'F', status: 'Out' }] }],
+      info: { attendance: 18000, officials: ['Ref One'] },
+      winprob: null,
+    })
+    const played = {
+      id: 'inj2',
       seasonType: 'regular',
       tip: '2026-01-08T00:00:00.000Z',
       home: 'BOS',
@@ -349,10 +365,12 @@ describe('GameDetail coverage', () => {
       score: [80, 70],
       line: { home: [20, 20, 20, 20], away: [18, 18, 17, 17] },
     }
-    open(game)
+    render(<GameDetail game={played} games={[played]} tz={TZ} onClose={() => {}} />)
     await userEvent.click(screen.getByRole('tab', { name: 'Matchup' }))
-    expect(await screen.findByRole('heading', { name: 'Injury report' })).toBeInTheDocument()
-    expect(screen.getByText('Jimmy Butler')).toBeInTheDocument()
+    // Wait for the summary to load (attendance proves it rendered), then confirm the
+    // current injury report is withheld for a finished game.
+    expect(await screen.findByText(/18,?000/)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Injury report' })).not.toBeInTheDocument()
   })
 
   it('ignores a summary that resolves after the modal has closed', async () => {
