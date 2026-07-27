@@ -14,7 +14,7 @@
 // in an R1 series can differ from the regular-season standings. Real series are therefore
 // located by their play-in-IMMUNE higher seed (1/2/3/4), never by the lower one.
 
-import { conferenceStandings } from './standings.js'
+import { conferenceStandings, CONFERENCE_BY_ABBR } from './standings.js'
 import { SERIES_LENGTH, PLAYOFF_ROUNDS } from '../data/schedule.js'
 
 export { PLAYOFF_ROUNDS, SERIES_LENGTH }
@@ -75,6 +75,76 @@ export function buildSeries(games) {
       live: s.games.some((g) => g.live),
     }
   })
+}
+
+// ── Play-in tournament ───────────────────────────────────────────────────────
+// Three single-elimination games per conference decide seeds 7 and 8:
+//   7v8    → winner takes the 7 seed; loser drops to the 8th-seed game
+//   9v10   → winner advances to the 8th-seed game; loser is eliminated
+//   8seed  → winner takes the 8 seed; loser is eliminated
+// Unlike the four bracket rounds these are single games, so they are NOT series and
+// deliberately don't go through buildSeries.
+
+export const PI_SLOTS = ['7v8', '9v10', '8seed']
+
+export const PI_SLOT_LABELS = {
+  '7v8': '7 vs 8',
+  '9v10': '9 vs 10',
+  '8seed': '8th-seed game',
+}
+
+// What each side of a play-in game walks away with.
+export const PI_OUTCOMES = {
+  '7v8': { win: 'Takes 7 seed', lose: 'To 8th-seed game' },
+  '9v10': { win: 'To 8th-seed game', lose: 'Eliminated' },
+  '8seed': { win: 'Takes 8 seed', lose: 'Eliminated' },
+}
+
+const blankPlayIn = (conf) => ({
+  conf,
+  games: [],
+  seeds: {},
+  eliminated: [],
+  played: false,
+  complete: false,
+})
+
+// Group the play-in games by conference and resolve each one's winner, the seeds it
+// settled, and who it knocked out. A game with no score yet (upcoming or in progress)
+// resolves to no winner, so this renders mid-tournament as well as after it.
+export function buildPlayIn(games) {
+  const byConf = { E: blankPlayIn('E'), W: blankPlayIn('W') }
+
+  for (const g of games) {
+    if (g.seasonType !== 'playin') continue
+    const conf = CONFERENCE_BY_ABBR[g.home]
+    // Skip anything the ladder can't place: an unrecognised team, or a headline whose
+    // slot didn't parse (ESPN prose, so it's worth not trusting blindly).
+    if (!conf || !CONFERENCE_BY_ABBR[g.away] || !PI_SLOTS.includes(g.piSlot)) continue
+
+    const decided = !!g.score && !g.postponed && !g.canceled
+    const winner = decided ? (g.score[0] > g.score[1] ? g.home : g.away) : null
+    const loser = winner ? (winner === g.home ? g.away : g.home) : null
+
+    byConf[conf].games.push({ ...g, slot: g.piSlot, winner, loser })
+  }
+
+  for (const conf of ['E', 'W']) {
+    const c = byConf[conf]
+    // Ladder order, not chronological — the conferences interleave, so East's 9v10 can
+    // tip before West's 7v8. Sort is stable and the source list is tip-ordered, so games
+    // sharing a slot keep their date order.
+    c.games.sort((a, b) => PI_SLOTS.indexOf(a.slot) - PI_SLOTS.indexOf(b.slot))
+    c.played = c.games.length > 0
+    for (const g of c.games) {
+      if (g.slot === '7v8' && g.winner) c.seeds[7] = g.winner
+      if (g.slot === '8seed' && g.winner) c.seeds[8] = g.winner
+      if ((g.slot === '9v10' || g.slot === '8seed') && g.loser) c.eliminated.push(g.loser)
+    }
+    c.complete = !!c.seeds[7] && !!c.seeds[8]
+  }
+
+  return byConf
 }
 
 const winnerOf = (slotObj) => slotObj?.winner ?? null
@@ -182,7 +252,10 @@ export function buildBracket(games) {
     conferences: { E, W },
     final,
     champion: final.winner,
+    // `playIn` is the projected 7–10 field from the standings; `playInResults` is the
+    // tournament itself once its games exist.
     playIn: { E: byConf.E.slice(6, 10), W: byConf.W.slice(6, 10) },
+    playInResults: buildPlayIn(games),
     seeds: { E: byConf.E.slice(0, 8), W: byConf.W.slice(0, 8) },
   }
 }

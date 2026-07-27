@@ -14,8 +14,11 @@ export default defineConfig({
     // render well over a thousand cards *twice* (filter toggles) under coverage
     // instrumentation. On a loaded CI runner one such test was seen at ~53s, so give
     // generous headroom — locally they run in <10s; this only guards runner variance.
-    testTimeout: 90000,
-    hookTimeout: 90000,
+    // Raised to 120s on 2026-07-27: one full-app test tripped 90s under a fully loaded
+    // parallel coverage run and passed on rerun, the same flake shape as the netlify
+    // mirror job.
+    testTimeout: 120000,
+    hookTimeout: 120000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'json'],

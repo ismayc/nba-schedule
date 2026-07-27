@@ -53,6 +53,31 @@ to the real NBA conference model, verified against the committed 2025-26 postsea
   the Finals; `RadialBracket.jsx` renders two conference wheels flanking the Finals.
 - **Tests: 273/273 pass** (19 files); `npm run build` clean.
 
+## Play-in tournament — DONE (2026-07-27)
+
+The six play-in games were **missing from the committed data entirely**. ESPN files them
+under their own season type — `seasontype=5`, *not* the postseason `3` — so fetching only
+`[2, 3]` silently dropped them; the round parser already had a `PI` pattern that could
+never fire. Fixed end to end:
+
+- **Fetch** (`fetch-schedule.mjs`): season type `5` → `seasonType: 'playin'`, and the
+  headline (`NBA Play-In - East - 9th Place vs 10th Place`) parses into
+  `piSlot: '7v8' | '9v10' | '8seed'`. The slot has to be parsed, not inferred from dates:
+  the conferences interleave, so East's 9v10 can tip before West's 7v8.
+  `check-schedule.mjs` fetches `5` too, or the new games read as drift.
+- **Model** (`utils/bracket.js`): `buildPlayIn(games)` → per conference the three games in
+  ladder order, the seeds they settled, and who was eliminated. These are single games,
+  not series, so they deliberately don't go through `buildSeries`.
+- **UI**: a `Play-In Tournament` card below the bracket — each game with its score, the
+  seed it produced, and the eliminations, clickable through to the game detail. It
+  replaces the projected 7–10 field listing once real games exist.
+- **Elsewhere**: a `⚡ Play-In` phase chip on the schedule, and the `.ics` description
+  says `Play-In Tournament` rather than `Playoffs — PI`.
+
+Verified against the real bracket: East 7 PHI / 8 ORL, West 7 POR / 8 PHX — exactly the
+7 and 8 seeds the committed first round used (a test asserts that cross-check). Play-in
+games do not count toward the standings, which `countsForStandings` already enforced.
+
 ## Still owed (polish + a re-sync)
 
 1. **Game-detail re-sync.** WNBA is mid-refactor replacing the `Lineups` panel with a

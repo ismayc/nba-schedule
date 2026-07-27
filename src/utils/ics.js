@@ -53,7 +53,13 @@ function vevent(game, { now }) {
   const desc = [
     game.broadcast?.length ? `Watch: ${game.broadcast.join(', ')}` : null,
     game.note || null,
-    game.round ? `Playoffs — ${game.round}${game.game ? ` game ${game.game}` : ''}` : null,
+    // The play-in is its own single-elimination round, not a playoff series, so it
+    // gets its own line rather than "Playoffs — PI".
+    game.round === 'PI'
+      ? 'Play-In Tournament'
+      : game.round
+        ? `Playoffs — ${game.round}${game.game ? ` game ${game.game}` : ''}`
+        : null,
   ]
     .filter(Boolean)
     .join('\n')

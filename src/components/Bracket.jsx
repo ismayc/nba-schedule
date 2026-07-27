@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { buildBracket, PLAYOFF_ROUNDS } from '../utils/bracket.js'
+import { buildBracket, PLAYOFF_ROUNDS, PI_SLOT_LABELS, PI_OUTCOMES } from '../utils/bracket.js'
 import { CONFERENCES } from '../utils/standings.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { formatDate } from '../utils/time.js'
@@ -173,9 +173,114 @@ function MobileBracket({ rounds, active, setActive, onPick, tz }) {
   )
 }
 
-export default function Bracket({ games, tz, onPick }) {
+// One side of a play-in game. The winner is emphasised and the loser dimmed, the same
+// language the bracket uses for a decided series.
+function PlayInSide({ abbr, score, isWinner, decided }) {
+  // buildPlayIn drops any game with an unknown abbreviation, so the team always resolves.
+  return (
+    <span className={`pi-side ${isWinner ? 'pi-won' : decided ? 'pi-lost' : ''}`}>
+      <TeamLogo abbr={abbr} size={18} />
+      <span className="pi-name">{TEAM_BY_ABBR[abbr].name}</span>
+      {score != null && <span className="pi-score">{score}</span>}
+    </span>
+  )
+}
+
+// A single play-in game: who played, the score, and what the result settled. These are
+// one-and-done games, so there are no series dots — the consequence IS the story.
+function PlayInGame({ game, tz, onOpen }) {
+  const { winner, loser, slot } = game
+  const outcome = PI_OUTCOMES[slot]
+  const knockedOut = loser && outcome.lose === 'Eliminated'
+
+  return (
+    <li className={`pi-game ${game.live ? 'is-live' : ''}`}>
+      <span className="pi-slot">{PI_SLOT_LABELS[slot]}</span>
+      <button className="pi-teams" onClick={() => onOpen?.(game)}>
+        <PlayInSide
+          abbr={game.away}
+          score={game.score?.[1]}
+          isWinner={winner === game.away}
+          decided={!!winner}
+        />
+        {/* The "@" and any OT flag belong to the home side, so a narrow column breaks
+            the line before them rather than stranding them. */}
+        <span className="pi-host">
+          <span className="pi-at">@</span>
+          <PlayInSide
+            abbr={game.home}
+            score={game.score?.[0]}
+            isWinner={winner === game.home}
+            decided={!!winner}
+          />
+          {game.ot && <span className="pi-ot">OT</span>}
+        </span>
+      </button>
+      <span className="pi-outcome">
+        {winner ? (
+          <>
+            <strong>{TEAM_BY_ABBR[winner]?.name}</strong> — {outcome.win}
+            {knockedOut && (
+              <span className="dim"> · {TEAM_BY_ABBR[loser]?.name} eliminated</span>
+            )}
+          </>
+        ) : game.live ? (
+          <span className="bx-live">● LIVE</span>
+        ) : (
+          <span className="dim">{formatDate(game.tip, tz)}</span>
+        )}
+      </span>
+    </li>
+  )
+}
+
+// The two play-in tournaments, below the bracket they feed. Shown whenever the games
+// exist at all — mid-tournament it reads as a live ladder, afterwards as the record of
+// how seeds 7 and 8 were settled.
+function PlayInResults({ results, tz, onOpen }) {
+  return (
+    <div className="card">
+      <h3 className="card-title">Play-In Tournament</h3>
+      <p className="sub">
+        Seeds 7–10 in each conference play off for the last two playoff spots: 7v8 decides
+        the 7 seed, its loser meets the 9v10 winner for the 8 seed, and the other two are
+        out. These games don&apos;t count in the regular-season standings.
+      </p>
+      <div className="bx-playin">
+        {['E', 'W'].map((c) => (
+          <div key={c} className="bx-playin-conf">
+            <div className="pi-head">
+              <h4 className="bx-playin-title">{CONFERENCES[c]}</h4>
+              <span className="pi-seeds">
+                {[7, 8].map((s) =>
+                  results[c].seeds[s] ? (
+                    <span key={s} className="pi-seed-chip">
+                      <span className="bx-field-seed">{s}</span>
+                      <TeamLogo abbr={results[c].seeds[s]} size={16} />
+                      {TEAM_BY_ABBR[results[c].seeds[s]]?.name}
+                    </span>
+                  ) : null
+                )}
+              </span>
+            </div>
+            <ol className="pi-list">
+              {results[c].games.map((g) => (
+                <PlayInGame key={g.id} game={g} tz={tz} onOpen={onOpen} />
+              ))}
+            </ol>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function Bracket({ games, tz, onPick, onOpen }) {
   const bracket = useMemo(() => buildBracket(games), [games])
-  const { conferences, final, champion, projected, playIn } = bracket
+  const { conferences, final, champion, projected, playIn, playInResults } = bracket
+  // Real play-in games replace the projected 7–10 field listing: once they're scheduled,
+  // the ladder itself says everything the standings snapshot did, and more.
+  const hasPlayIn = playInResults.E.played || playInResults.W.played
   const isMobile = useMediaQuery('(max-width: 720px)')
 
   // The season's other title game. Deliberately a footnote, not a bracket: it's a
@@ -243,7 +348,9 @@ export default function Bracket({ games, tz, onPick }) {
         </div>
       )}
 
-      {projected && (
+      {hasPlayIn && <PlayInResults results={playInResults} tz={tz} onOpen={onOpen} />}
+
+      {!hasPlayIn && projected && (
         <div className="card">
           <h3 className="card-title">Play-in — seeds 7 to 10</h3>
           <div className="bx-playin">

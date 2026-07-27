@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { NBA_POSTSEASON } from './fixtures/postseason.js'
 import { GAMES } from '../src/data/schedule.js'
-import { buildSeries, buildBracket, layout, polar, CENTER, R1_PAIRS } from '../src/utils/bracket.js'
+import {
+  buildSeries,
+  buildBracket,
+  buildPlayIn,
+  layout,
+  polar,
+  CENTER,
+  R1_PAIRS,
+} from '../src/utils/bracket.js'
+import { countsForStandings, CONFERENCE_BY_ABBR } from '../src/utils/standings.js'
 
 // The committed 2025-26 schedule now carries a finished postseason, so the real bracket
 // is the best test of the engine. Everything below the play-in resolves from those games.
@@ -138,6 +147,104 @@ describe('projection before the postseason exists', () => {
     const top = b.conferences.E.r1[0]
     expect(top.seeds).toEqual([1, 8])
     expect(top.teams[0]).toBe(b.seeds.E[0].abbr)
+  })
+})
+
+// The play-in decides seeds 7 and 8, so the strongest check is that its winners ARE the
+// 7 and 8 seeds the committed first round actually used. That ties the new data to
+// something already verified rather than restating the same feed twice.
+describe('the 2025-26 play-in tournament', () => {
+  const pi = buildPlayIn(GAMES)
+
+  it('reads all six games, three per conference', () => {
+    expect(pi.E.games).toHaveLength(3)
+    expect(pi.W.games).toHaveLength(3)
+    expect(pi.E.played).toBe(true)
+    expect(pi.E.complete).toBe(true)
+    expect(pi.W.complete).toBe(true)
+  })
+
+  it('orders each ladder 7v8, 9v10, then the 8th-seed game', () => {
+    expect(pi.E.games.map((g) => g.slot)).toEqual(['7v8', '9v10', '8seed'])
+    expect(pi.W.games.map((g) => g.slot)).toEqual(['7v8', '9v10', '8seed'])
+  })
+
+  it('settles the seeds the first round then used', () => {
+    // East: Philadelphia beat Orlando for the 7 seed; Orlando took the 8 via Charlotte.
+    expect(pi.E.seeds).toEqual({ 7: 'PHI', 8: 'ORL' })
+    // West: Portland won at Phoenix for the 7 seed; Phoenix beat Golden State for the 8.
+    expect(pi.W.seeds).toEqual({ 7: 'POR', 8: 'PHX' })
+
+    // Cross-check against the real bracket: the 7 and 8 seeds of each conference's
+    // first round must be exactly the teams the play-in sent through.
+    const b = buildBracket(GAMES)
+    for (const conf of ['E', 'W']) {
+      const oneVsEight = b.conferences[conf].r1[0] // 1v8
+      const twoVsSeven = b.conferences[conf].r1[2] // 2v7
+      expect(oneVsEight.teams).toContain(pi[conf].seeds[8])
+      expect(twoVsSeven.teams).toContain(pi[conf].seeds[7])
+    }
+  })
+
+  it('records who the tournament knocked out', () => {
+    // Losing 9v10 or the 8th-seed game ends the season; losing 7v8 does not.
+    expect(pi.E.eliminated.sort()).toEqual(['CHA', 'MIA'])
+    expect(pi.W.eliminated.sort()).toEqual(['GS', 'LAC'])
+  })
+
+  it('names a winner and a loser for every played game', () => {
+    for (const g of [...pi.E.games, ...pi.W.games]) {
+      expect(g.winner).toBeTruthy()
+      expect(g.loser).toBeTruthy()
+      expect(g.winner).not.toBe(g.loser)
+      expect([g.home, g.away]).toContain(g.winner)
+    }
+  })
+
+  it('keeps play-in games out of the regular-season standings', () => {
+    for (const g of GAMES.filter((x) => x.seasonType === 'playin')) {
+      expect(countsForStandings(g)).toBe(false)
+    }
+  })
+})
+
+describe('a play-in that has not finished', () => {
+  const east = GAMES.filter(
+    (g) => g.seasonType === 'playin' && CONFERENCE_BY_ABBR[g.home] === 'E'
+  )
+
+  it('has no seeds and no ladder at all before the games exist', () => {
+    const pi = buildPlayIn(GAMES.filter((g) => g.seasonType !== 'playin'))
+    expect(pi.E.played).toBe(false)
+    expect(pi.E.games).toEqual([])
+    expect(pi.E.seeds).toEqual({})
+    expect(pi.E.complete).toBe(false)
+  })
+
+  it('leaves a game with no score yet undecided', () => {
+    const pending = east.map((g) => (g.piSlot === '8seed' ? { ...g, score: undefined } : g))
+    const pi = buildPlayIn(pending)
+    expect(pi.E.seeds).toEqual({ 7: 'PHI' }) // 8 seed still open
+    expect(pi.E.complete).toBe(false)
+    expect(pi.E.games.at(-1).winner).toBeNull()
+    expect(pi.E.games.at(-1).loser).toBeNull()
+    // Only the 9v10 loser is out so far.
+    expect(pi.E.eliminated).toEqual(['MIA'])
+  })
+
+  it('ignores a postponed or canceled shell', () => {
+    const off = east.map((g) => (g.piSlot === '7v8' ? { ...g, postponed: true } : g))
+    expect(buildPlayIn(off).E.seeds[7]).toBeUndefined()
+    const dead = east.map((g) => (g.piSlot === '7v8' ? { ...g, canceled: true } : g))
+    expect(buildPlayIn(dead).E.seeds[7]).toBeUndefined()
+  })
+
+  it('drops a game it cannot place — unknown team or unparsed slot', () => {
+    const [g] = east
+    expect(buildPlayIn([{ ...g, home: 'ZZZ' }]).E.games).toHaveLength(0)
+    expect(buildPlayIn([{ ...g, away: 'ZZZ' }]).E.games).toHaveLength(0)
+    expect(buildPlayIn([{ ...g, piSlot: undefined }]).E.games).toHaveLength(0)
+    expect(buildPlayIn([{ ...g, piSlot: 'nonsense' }]).E.games).toHaveLength(0)
   })
 })
 

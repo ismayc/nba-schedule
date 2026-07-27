@@ -23,7 +23,7 @@ snapshot of the season.
 | 📋 **Schedule** | Every game grouped by the calendar day *you* see, opening on today — previous days are hidden behind a toggle. Filter by team or by the teams you follow. |
 | 📆 **Week** | A Sun–Sat grid you can page through, collapsing to a two-column agenda on a phone. |
 | 📊 **Regular Season** | Both conference tables side by side, with the playoff cut and the play-in band marked. W/L, PCT, GB, home/road splits, last-10, streak, net rating. |
-| 🏆 **Playoffs** | Two conference brackets (East and West) into the Finals, where each slot is a best-of-seven series. Projected from current seeding until the real field is set. |
+| 🏆 **Playoffs** | Two conference brackets (East and West) into the Finals, where each slot is a best-of-seven series. Projected from current seeding until the real field is set. Below it, both **Play-In Tournaments** — every game, with the seed it settled and who it knocked out. |
 | 🎯 **Radial** | The same brackets as concentric rings — one wheel per conference, seeds outside and the conference champion in the middle — flanking the Finals. |
 | 📈 **Stats** | Season averages, league leaders across 8 categories, scoring margin, and the playoff race — by conference — with magic numbers. |
 
@@ -120,7 +120,11 @@ The NBA is conference-based, and a few details drive most of the app's playoff l
   division leader over a non-leader, then division record, then conference record, then
   point differential. (The circular "record vs playoff teams" steps fall through to
   point differential — the deterministic tail.)
-- **Seeds 7–10 play a play-in** to settle the 7 and 8 seeds; 1–6 are set outright.
+- **Seeds 7–10 play a play-in** to settle the 7 and 8 seeds; 1–6 are set outright. Three
+  single-elimination games per conference: 7v8 (winner takes the 7 seed), 9v10 (loser is
+  out), then the 7v8 loser vs the 9v10 winner for the 8 seed. ESPN files these under
+  their own season type (`seasontype=5`), not the postseason, and they do **not** count
+  toward the regular-season standings.
 - **A playoff slot is a series, not a game** — best-of-seven every round — and the
   bracket is *fixed by seed*: 1v8/4v5/2v7/3v6, no re-seeding. The two conference
   champions meet in the Finals.
@@ -154,6 +158,9 @@ the edge cases you wouldn't think to invent.
   best-of-seven fixture (`test/fixtures/postseason.js`) for the series engine. Series are
   located by their play-in-immune higher seed, so a lower seed that advanced through the
   play-in (a 7-over-2 upset) still slots correctly.
+- **The play-in** is cross-checked against the bracket it feeds: the teams it sends
+  through must be exactly the 7 and 8 seeds the committed first round actually used, so
+  the two data sets have to agree rather than each being asserted on its own.
 - **Format invariants** that would otherwise depend on this week's results (like the
   tiebreaker order, or per-conference seeding) are tested with synthetic data that
   equalises everything above the step under test, so they don't break when standings

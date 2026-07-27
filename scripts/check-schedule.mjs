@@ -56,7 +56,9 @@ async function fetchLive() {
 
   const byId = new Map()
   for (const abbr of abbrs) {
-    for (const type of [2, 3]) {
+    // 2=regular, 3=postseason, 5=play-in. The play-in is its own season type, so it has
+    // to be asked for by name or the committed play-in games look like drift.
+    for (const type of [2, 3, 5]) {
       const d = await getJson(`${SITE}/teams/${abbr}/schedule?season=${SEASON}&seasontype=${type}`)
       for (const ev of d.events || []) {
         const c = ev.competitions?.[0]

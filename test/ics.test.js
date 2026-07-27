@@ -111,6 +111,15 @@ describe('buildIcs', () => {
     expect(ics).toContain('LOCATION:Arena\\, The\\, X')
   })
 
+  it('describes a play-in game as its own round, not "Playoffs — PI"', () => {
+    // Long DESCRIPTION values are folded across lines, so unfold before matching.
+    const unfolded = (g) => build([g]).replace(/\r\n /g, '')
+    expect(unfolded(GAMES.find((g) => g.round === 'PI'))).toContain('Play-In Tournament')
+    expect(unfolded(GAMES.find((g) => g.round === 'PI'))).not.toContain('Playoffs — PI')
+    // A real playoff series still reads as one.
+    expect(unfolded(GAMES.find((g) => g.round === 'R1'))).toMatch(/Playoffs — R1 game \d/)
+  })
+
   it('holds up over the whole season', () => {
     const ics = build(GAMES)
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(GAMES.length)

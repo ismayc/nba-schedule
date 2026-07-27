@@ -406,6 +406,18 @@ describe('filter panel', () => {
     expect(document.querySelectorAll('.game').length).toBe(all)
   })
 
+  it('offers a Play-In chip that isolates the six play-in games', async () => {
+    await mount()
+    await userEvent.click(toggle())
+    // The play-in is months in the past, so open the full season and expand it.
+    await userEvent.click(screen.getByRole('button', { name: /earlier games/i }))
+    await userEvent.click(phaseChip('⚡ Play-In'))
+    expandMonths()
+    expect(document.querySelectorAll('.game')).toHaveLength(
+      GAMES.filter((g) => g.seasonType === 'playin').length
+    )
+  })
+
   it('counts an active phase filter on the badge and Clear all resets it', async () => {
     await mount()
     await userEvent.click(toggle())

@@ -1753,6 +1753,129 @@ select:hover,
   margin-bottom: 0;
 }
 
+/* ── Play-in tournament results ─────────────────────────────────────── */
+/* Three single games per conference, each with what it settled. Laid out as a ladder
+   rather than a bracket: the outcome column, not the geometry, carries the meaning. */
+.pi-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.pi-head .bx-playin-title {
+  margin-bottom: 0;
+}
+
+.pi-seeds {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pi-seed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pi-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.pi-game {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.pi-game:first-child {
+  border-top: none;
+}
+
+.pi-slot {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.pi-teams {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pi-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.pi-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pi-teams:hover .pi-name {
+  color: var(--accent);
+}
+
+.pi-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.pi-won .pi-name,
+.pi-won .pi-score {
+  font-weight: 700;
+}
+
+.pi-won .pi-score {
+  color: var(--accent);
+}
+
+.pi-lost {
+  opacity: 0.5;
+}
+
+.pi-at,
+.pi-ot {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+/* The result reads as a consequence of the line above it, so it always sits under the
+   matchup rather than beside it — the two conference ladders sit side by side, and half
+   a card is never wide enough for a third column without wrapping the team names. */
+.pi-outcome {
+  grid-column: 2;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.pi-outcome strong {
+  color: var(--text);
+}
+
 /* ── Radial bracket ─────────────────────────────────────────────────── */
 /* Two conference wheels flanking the Finals indicator; wraps on narrow screens. */
 .rb-pair {

@@ -25,8 +25,10 @@ const WITH_LOGOS = !args.includes('--no-logos')
 // "2025-26" from the ESPN ending-year 2026.
 const seasonLabel = (endYear) => `${endYear - 1}-${String(endYear).slice(2)}`
 
-// ESPN seasonType ids. 1=preseason (skipped), 2=regular, 3=postseason, 4=all-star.
-const SEASON_TYPE = { 2: 'regular', 3: 'playoffs', 4: 'allstar' }
+// ESPN seasonType ids. 1=preseason (skipped), 2=regular, 3=postseason, 4=all-star,
+// 5=play-in. The play-in is its OWN season type in ESPN's feed — it is not part of
+// seasontype=3 — so fetching only 2 and 3 silently drops all six play-in games.
+const SEASON_TYPE = { 2: 'regular', 3: 'playoffs', 4: 'allstar', 5: 'playin' }
 
 // The NBA Cup (In-Season Tournament) CHAMPIONSHIP is the one extra game that does NOT
 // count toward regular-season standings. Every other Cup game — group stage AND the
@@ -79,12 +81,27 @@ const ROUND_PATTERNS = [
   [/final/i, 'CF'],
 ]
 
+// The three play-in games per conference, from the same headline:
+//   "NBA Play-In - East - 7th Place vs 8th Place"  → winner takes the 7 seed
+//   "NBA Play-In - East - 9th Place vs 10th Place" → loser is eliminated
+//   "NBA Play-In - East - 8th Seed Game"           → 7/8 loser vs 9/10 winner for the 8 seed
+// The slot has to be parsed rather than inferred from dates: the two conferences
+// interleave, and East's 9v10 can tip before West's 7v8.
+const PI_SLOTS = [
+  [/7th\s*place\s*vs\s*8th\s*place/i, '7v8'],
+  [/9th\s*place\s*vs\s*10th\s*place/i, '9v10'],
+  [/8th\s*seed/i, '8seed'],
+]
+
 function parseSeriesNote(notes) {
   const headline = (notes || []).map((n) => n.headline).find(Boolean)
   if (!headline) return {}
   const round = ROUND_PATTERNS.find(([re]) => re.test(headline))?.[1]
+  // "Game N" is a best-of-7 series index; the play-in has none (each of its games is
+  // single-elimination), so it carries a slot instead.
   const game = Number(headline.match(/game\s*(\d+)/i)?.[1]) || undefined
-  return { round, game, note: headline }
+  const piSlot = round === 'PI' ? PI_SLOTS.find(([re]) => re.test(headline))?.[1] : undefined
+  return { round, game: round === 'PI' ? undefined : game, piSlot, note: headline }
 }
 
 // The team-schedule feed and the scoreboard feed disagree on broadcast shape:
@@ -150,7 +167,7 @@ async function fetchSchedule(teams) {
   const results = await Promise.all(
     teams.map(async (t) => {
       const seen = []
-      for (const type of [2, 3]) {
+      for (const type of [2, 3, 5]) {
         const d = await getJson(
           `${SITE}/teams/${t.abbr}/schedule?season=${SEASON}&seasontype=${type}`
         )
@@ -387,7 +404,7 @@ async function main() {
       `export const GAMES = [\n` +
       games.map((g) => `  ${JSON.stringify(g)},`).join('\n') +
       `\n]\n\n` +
-      `export const SEASON_TYPES = ['regular', 'allstar', 'playoffs']\n\n` +
+      `export const SEASON_TYPES = ['regular', 'allstar', 'playin', 'playoffs']\n\n` +
       `// Playoff round keys, in bracket order. Play-In (PI) is single-elimination; the\n` +
       `// four series rounds are all best-of-seven.\n` +
       `export const PLAYOFF_ROUNDS = { PI: 'Play-In', R1: 'First Round', CSF: 'Conference Semifinals', CF: 'Conference Finals', Final: 'NBA Finals' }\n\n` +

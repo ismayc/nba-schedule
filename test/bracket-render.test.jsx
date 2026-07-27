@@ -8,9 +8,10 @@ import { GAMES } from '../src/data/schedule.js'
 const TZ = 'America/New_York'
 
 // The committed schedule holds the finished 2025-26 postseason (New York champion), so
-// the completed path renders straight from GAMES. Stripping the playoff games back out
-// gives the projected path.
-const REGULAR = GAMES.filter((g) => g.seasonType !== 'playoffs')
+// the completed path renders straight from GAMES. Stripping the playoff AND play-in
+// games back out gives the projected path — the play-in has to go too, or its real
+// results render in place of the projected 7–10 field.
+const REGULAR = GAMES.filter((g) => g.seasonType !== 'playoffs' && g.seasonType !== 'playin')
 
 describe('Bracket with a completed postseason', () => {
   it('announces the champion', () => {
@@ -96,6 +97,93 @@ describe('Bracket before the postseason', () => {
     const { container } = render(<Bracket games={REGULAR} tz={TZ} onPick={onPick} />)
     await userEvent.click(container.querySelector('.bx-team'))
     expect(onPick).toHaveBeenCalled()
+  })
+})
+
+// The ladder that feeds the bracket, rendered under it. Every assertion is about what a
+// result MEANT — a seed taken or a season ended — not just that two names appeared.
+describe('the play-in tournament section', () => {
+  const east = (container) => container.querySelectorAll('.bx-playin-conf')[0]
+
+  it('lists three games per conference with the score of each', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    expect(screen.getByText('Play-In Tournament')).toBeInTheDocument()
+    expect(container.querySelectorAll('.pi-game')).toHaveLength(6)
+
+    const first = east(container).querySelector('.pi-game')
+    expect(first.querySelector('.pi-slot')).toHaveTextContent('7 vs 8')
+    // Philadelphia 109, Orlando 97 — away side is listed first.
+    expect([...first.querySelectorAll('.pi-score')].map((n) => n.textContent)).toEqual(['97', '109'])
+  })
+
+  it('says what each game settled', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    const outcomes = [...east(container).querySelectorAll('.pi-outcome')].map((n) => n.textContent)
+    expect(outcomes[0]).toMatch(/76ers — Takes 7 seed/)
+    expect(outcomes[1]).toMatch(/Hornets — To 8th-seed game · Heat eliminated/)
+    expect(outcomes[2]).toMatch(/Magic — Takes 8 seed · Hornets eliminated/)
+  })
+
+  it('heads each conference with the two seeds it produced', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    const chips = [...east(container).querySelectorAll('.pi-seed-chip')].map((n) => n.textContent)
+    expect(chips).toEqual(['776ers', '8Magic'])
+  })
+
+  it('marks the winner and dims the loser of each game', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    const first = east(container).querySelector('.pi-game')
+    expect(within(first.querySelector('.pi-won')).getByText('76ers')).toBeInTheDocument()
+    expect(within(first.querySelector('.pi-lost')).getByText('Magic')).toBeInTheDocument()
+  })
+
+  it('flags a game that went to overtime', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    // Charlotte 127–126 over Miami needed an extra period.
+    const ot = [...container.querySelectorAll('.pi-game')].filter((n) => n.querySelector('.pi-ot'))
+    expect(ot).toHaveLength(1)
+    expect(ot[0].querySelector('.pi-slot')).toHaveTextContent('9 vs 10')
+  })
+
+  it('opens the game detail when a matchup is clicked', async () => {
+    const onOpen = vi.fn()
+    const { container } = render(<Bracket games={GAMES} tz={TZ} onOpen={onOpen} />)
+    await userEvent.click(east(container).querySelector('.pi-teams'))
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ slot: '7v8', winner: 'PHI' }))
+  })
+
+  it('survives a click with no handler wired', async () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    await userEvent.click(container.querySelector('.pi-teams'))
+    expect(container.querySelectorAll('.pi-game')).toHaveLength(6)
+  })
+
+  it('shows the tip time for a game not yet played, and LIVE for one in progress', () => {
+    const upcoming = GAMES.map((g) =>
+      g.seasonType === 'playin' && g.piSlot === '8seed' ? { ...g, score: undefined } : g
+    )
+    const { container: soon } = render(<Bracket games={upcoming} tz={TZ} />)
+    const pending = [...soon.querySelectorAll('.pi-game')].at(-1)
+    expect(pending.querySelector('.pi-outcome')).toHaveTextContent(/Apr/)
+    // An undecided game shows no score and dims neither side.
+    expect(pending.querySelectorAll('.pi-score')).toHaveLength(0)
+    expect(pending.querySelector('.pi-lost')).toBeNull()
+    // With the 8 seed still open, only the 7-seed chip is headed.
+    expect(soon.querySelectorAll('.bx-playin-conf')[0].querySelectorAll('.pi-seed-chip')).toHaveLength(1)
+
+    const live = upcoming.map((g) =>
+      g.seasonType === 'playin' && g.piSlot === '8seed' ? { ...g, live: true } : g
+    )
+    const { container: playing } = render(<Bracket games={live} tz={TZ} />)
+    const inProgress = [...playing.querySelectorAll('.pi-game.is-live')]
+    expect(inProgress).toHaveLength(2)
+    expect(inProgress[0].querySelector('.pi-outcome')).toHaveTextContent('● LIVE')
+  })
+
+  it('falls back to the projected 7–10 field when the play-in has not been scheduled', () => {
+    render(<Bracket games={REGULAR} tz={TZ} />)
+    expect(screen.queryByText('Play-In Tournament')).not.toBeInTheDocument()
+    expect(screen.getByText(/seeds 7 to 10/i)).toBeInTheDocument()
   })
 })
 

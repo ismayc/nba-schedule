@@ -42,9 +42,10 @@ const SEARCH_EXAMPLES = ['team: Thunder', 'city: Oklahoma City', 'venue: Paycom'
 // mixes these together; the phase chips let you narrow to one or more. Only phases
 // that actually occur in the data get a chip, so a Playoffs chip appears on its own
 // once those games are added.
-const PHASE_ORDER = ['regular', 'playoffs', 'allstar', 'cup']
+const PHASE_ORDER = ['regular', 'playin', 'playoffs', 'allstar', 'cup']
 const PHASE_LABELS = {
   regular: 'Regular season',
+  playin: '⚡ Play-In',
   playoffs: '🏆 Playoffs',
   allstar: '⭐ All-Star',
   cup: '🏅 Cup',
@@ -535,7 +536,7 @@ export default function App() {
         )}
         {view === 'standings' && <StandingsView games={games} onPick={setTeamPanel} />}
         {view === 'playoffs' && (
-          <Bracket games={games} tz={tz} onPick={setTeamPanel} />
+          <Bracket games={games} tz={tz} onPick={setTeamPanel} onOpen={setDetail} />
         )}
         {view === 'radial' && (
           <RadialBracket games={games} onPick={setTeamPanel} />
