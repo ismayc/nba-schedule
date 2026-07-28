@@ -31,7 +31,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { fetchTeams, fetchSchedule, fetchLeaders, seasonLabel } from './fetch-schedule.mjs'
-import { conferenceStandings } from '../src/utils/standings.js'
+import { conferenceStandings, countsForStandings } from '../src/utils/standings.js'
+import { leaderboard, LEADER_CATEGORIES } from '../src/utils/stats.js'
 import { SEASON } from '../src/data/teams.js'
 import { buildBracket, buildPlayIn } from '../src/utils/bracket.js'
 
@@ -45,17 +46,30 @@ const FROM = flag('--from', 2021)
 // current season joins the archive by itself the week it finishes.
 const TO = flag('--to', SEASON)
 
-// Season averages worth keeping per season. The current season's Stats view has more
-// categories; history keeps the ones that read as a season's story.
-const LEADER_CATS = [
-  { key: 'points', field: 'avgPoints', label: 'Points per game' },
-  { key: 'rebounds', field: 'avgRebounds', label: 'Rebounds per game' },
-  { key: 'assists', field: 'avgAssists', label: 'Assists per game' },
-  { key: 'steals', field: 'avgSteals', label: 'Steals per game' },
-  { key: 'blocks', field: 'avgBlocks', label: 'Blocks per game' },
-  { key: 'threes', field: 'avgThreeMade', label: '3-pointers per game' },
-]
+// The archive keeps a board for EVERY category the live Stats view offers, built with
+// the live leaderboard() — same tie handling (1, 2, 2, 4) and same volume qualifiers for
+// the percentage categories. Storing the ranked board rather than 300 stat lines is what
+// keeps a season small, and it means the History tab renders through the same card.
 const LEADERS_PER_CAT = 10
+
+// A board row is just {id, rank, value}: the stat line lives once per season in a
+// players table, keyed by id. A player who leads four categories is stored once, and the
+// rows the History tab hands to the leaders card and the player pop-out end up the same
+// shape those components already take for the live season.
+const PLAYER_FIELDS = [
+  'id', 'name', 'team', 'pos',
+  'gamesPlayed', 'avgMinutes',
+  'avgPoints', 'avgRebounds', 'avgAssists', 'avgSteals', 'avgBlocks',
+  'avgFgMade', 'avgFgAtt', 'fgPct',
+  'avgThreeMade', 'avgThreeAtt', 'threePct',
+  'avgFtMade', 'avgFtAtt', 'ftPct',
+]
+const pick = (p) => Object.fromEntries(PLAYER_FIELDS.map((f) => [f, p[f]]))
+
+// A handful of games worth naming — the closest finishes and the highest-scoring nights.
+// Ten regular-season rows a season, so the drill-downs the live view offers survive
+// without committing all 1,230 games.
+const NOTABLE = 5
 
 const round1 = (v) => (typeof v === 'number' ? Number(v.toFixed(1)) : null)
 const round3 = (v) => (typeof v === 'number' ? Number(v.toFixed(3)) : null)
@@ -90,6 +104,40 @@ const compactRow = (r) => ({
 // the full box score from ESPN when a game is opened.
 const compactGame = ({ broadcast, ...g }) => g
 
+// A notable regular-season game, stripped to what a one-line drill-down shows (plus the
+// id, so it still opens its box score).
+const notableGame = (g) => ({
+  id: g.id,
+  tip: g.tip,
+  home: g.home,
+  away: g.away,
+  score: g.score,
+  ot: g.ot,
+})
+
+// Season-wide totals, computed here rather than committed as 1,230 games. These are the
+// tiles the live Stats view derives from the game list: everything except the two
+// drill-downs, which are represented by the notable-game lists instead.
+function seasonTotals(games) {
+  const played = games.filter(countsForStandings)
+  const margin = (g) => Math.abs(g.score[0] - g.score[1])
+  const total = (g) => g.score[0] + g.score[1]
+  const points = played.reduce((n, g) => n + total(g), 0)
+
+  return {
+    played: played.length,
+    points,
+    combinedPpg: round1(points / played.length),
+    homeWins: played.filter((g) => g.score[0] > g.score[1]).length,
+    ot: played.filter((g) => g.ot).length,
+    // A one-possession game is three points or fewer; a blowout is 20 or more.
+    nailbiters: played.filter((g) => margin(g) <= 3).length,
+    blowouts: played.filter((g) => margin(g) >= 20).length,
+    closest: [...played].sort((a, b) => margin(a) - margin(b)).slice(0, NOTABLE).map(notableGame),
+    highest: [...played].sort((a, b) => total(b) - total(a)).slice(0, NOTABLE).map(notableGame),
+  }
+}
+
 // A season is only worth committing once it's over: an unfinished postseason would
 // freeze into the file as a permanently half-played bracket.
 const isComplete = (bracket) => !!bracket.champion
@@ -104,12 +152,11 @@ function summarise(year, games, leaderRows) {
     .map(compactGame)
 
   const leaders = {}
-  for (const cat of LEADER_CATS) {
-    leaders[cat.key] = leaderRows
-      .filter((p) => typeof p[cat.field] === 'number')
-      .sort((a, b) => b[cat.field] - a[cat.field])
-      .slice(0, LEADERS_PER_CAT)
-      .map((p) => ({ name: p.name, short: p.short, team: p.team, pos: p.pos, v: p[cat.field] }))
+  const players = {}
+  for (const cat of LEADER_CATEGORIES) {
+    const board = leaderboard(cat.key, { limit: LEADERS_PER_CAT, players: leaderRows })
+    for (const p of board) players[p.id] ??= pick(p)
+    leaders[cat.key] = board.map((p) => ({ id: p.id, rank: p.rank, value: p.value }))
   }
 
   return {
@@ -125,6 +172,8 @@ function summarise(year, games, leaderRows) {
     },
     standings: { E: standings.E.map(compactRow), W: standings.W.map(compactRow) },
     games: post,
+    totals: seasonTotals(games),
+    players,
     leaders,
     complete: isComplete(bracket),
   }
@@ -149,12 +198,22 @@ const serialiseSeason = (s) =>
     `    games: [`,
     ...s.games.map((g) => `      ${JSON.stringify(g)},`),
     `    ],`,
+    `    totals: {`,
+    ...Object.entries(s.totals).map(([k, v]) =>
+      Array.isArray(v)
+        ? `      ${k}: [\n` + v.map((g) => `        ${JSON.stringify(g)},`).join('\n') + `\n      ],`
+        : `      ${k}: ${JSON.stringify(v)},`
+    ),
+    `    },`,
+    `    players: {`,
+    ...Object.entries(s.players).map(([id, p]) => `      ${JSON.stringify(id)}: ${JSON.stringify(p)},`),
+    `    },`,
     `    leaders: {`,
-    ...LEADER_CATS.map(
+    ...LEADER_CATEGORIES.map(
       (cat) =>
-        `      ${cat.key}: [\n` +
-        s.leaders[cat.key].map((p) => `        ${JSON.stringify(p)},`).join('\n') +
-        `\n      ],`
+        `      ${JSON.stringify(cat.key)}: ` +
+        JSON.stringify(s.leaders[cat.key]) +
+        `,`
     ),
     `    },`,
     `  },`,

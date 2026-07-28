@@ -3,7 +3,9 @@ import { HISTORY, HISTORY_BY_YEAR, HISTORY_YEARS } from '../data/history.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { CONFERENCES } from '../utils/standings.js'
 import { finalsSummary, playInQualifiers, seasonPlayIn } from '../utils/history.js'
+import { seasonScoring } from '../utils/stats.js'
 import { BracketBody } from './Bracket.jsx'
+import { Tile, GameList, Leaders, MarginChart } from './StatsView.jsx'
 import TeamLogo from './TeamLogo.jsx'
 
 /**
@@ -23,9 +25,13 @@ import TeamLogo from './TeamLogo.jsx'
 
 const MODES = [
   { key: 'season', label: 'By season' },
+  { key: 'stats', label: 'Stats' },
   { key: 'playin', label: 'Play-in qualifiers' },
   { key: 'champions', label: 'Champions' },
 ]
+
+// The two modes that show ONE season, and so want the season picker above them.
+const SEASON_SCOPED = new Set(['season', 'stats'])
 
 // Every abbreviation in history.js is one of the 30 current franchises — no team has
 // moved or been renamed since 2020-21 — so this never has to fall back.
@@ -144,45 +150,79 @@ function Season({ season, tz, onPick, onOpen }) {
           <StandingsTable key={c} conf={c} rows={season.standings[c]} onPick={onPick} />
         ))}
       </div>
-
-      <Leaders leaders={season.leaders} onPick={onPick} />
     </>
   )
 }
 
-const LEADER_LABELS = {
-  points: 'Points',
-  rebounds: 'Rebounds',
-  assists: 'Assists',
-  steals: 'Steals',
-  blocks: 'Blocks',
-  threes: '3-pointers',
-}
+/* ── One season's statistics ───────────────────────────────────────────── */
 
-function Leaders({ leaders, onPick }) {
+// The live Stats view's cards, driven by an archived season instead of a game list:
+// the totals it derived from ~1,230 games are committed as numbers, the leaderboards
+// were built by the same leaderboard() at fetch time, and the margin chart re-derives
+// from points for/against in the standings.
+//
+// The live view's fourth card, the playoff race, has no historical meaning — magic
+// numbers for a season that finished years ago — so a finished season shows its
+// notable games instead.
+function SeasonStats({ season, tz, onPickTeam, onPickPlayer, onOpen }) {
+  const t = season.totals
+  const [open, setOpen] = useState(null)
+  const toggle = (k) => setOpen((v) => (v === k ? null : k))
+
+  const rows = useMemo(() => seasonScoring(season.standings, TEAM_BY_ABBR), [season])
+  // Rejoin each board row to that season's player table, so a row reaching the leaders
+  // card or the player pop-out carries the same full stat line a live row does.
+  // Identity is stable per season, so the card's memo holds across category switches.
+  const getRows = useMemo(
+    () => (cat) =>
+      season.leaders[cat.key].map((r) => ({ ...season.players[r.id], rank: r.rank, value: r.value })),
+    [season]
+  )
+
+  const margin = (g) => Math.abs(g.score[0] - g.score[1])
+  const drill = (games, note) => <GameList games={games} tz={tz} note={note} onOpen={onOpen} />
+
   return (
-    <div className="card">
-      <h3 className="card-title">Season leaders — per game</h3>
-      <div className="hy-leaders">
-        {Object.entries(LEADER_LABELS).map(([key, label]) => (
-          <div key={key} className="hy-leader-cat">
-            <h4 className="bx-playin-title">{label}</h4>
-            <ol className="hy-leader-list">
-              {leaders[key].map((p, i) => (
-                <li key={`${p.name}-${p.team}`}>
-                  <span className="bx-field-seed">{i + 1}</span>
-                  <button className="hy-team" onClick={() => onPick?.(p.team)}>
-                    <TeamLogo abbr={p.team} size={16} />
-                    <span>{p.short}</span>
-                  </button>
-                  <span className="hy-leader-v">{p.v.toFixed(1)}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ))}
+    <>
+      <div className="card">
+        <h3 className="card-title">{season.label} in numbers</h3>
+        <div className="tiles">
+          <Tile label="Games played" value={t.played.toLocaleString()} sub="regular season" />
+          <Tile label="Points scored" value={t.points.toLocaleString()} />
+          <Tile label="Points per game" value={t.combinedPpg.toFixed(1)} sub="both teams" />
+          <Tile
+            label="Home win rate"
+            value={`${Math.round((t.homeWins / t.played) * 100)}%`}
+            sub={`${t.homeWins.toLocaleString()} of ${t.played.toLocaleString()}`}
+          />
+          <Tile label="Overtime games" value={t.ot} />
+          <Tile label="One-possession finishes" value={t.nailbiters} sub="within 3" />
+          <Tile label="Blowouts" value={t.blowouts} sub="by 20 or more" />
+          <Tile
+            label="Closest games"
+            value={t.closest.length}
+            onClick={() => toggle('closest')}
+            open={open === 'closest'}
+          />
+          <Tile
+            label="Highest scoring"
+            value={t.highest.length}
+            onClick={() => toggle('highest')}
+            open={open === 'highest'}
+          />
+        </div>
+        {open === 'closest' && drill(t.closest, (g) => `by ${margin(g)}`)}
+        {open === 'highest' && drill(t.highest, (g) => `${g.score[0] + g.score[1]} total`)}
+        <p className="fine">
+          Totals cover the regular season. The five closest and five highest-scoring nights
+          are the only regular-season games kept — each still opens its box score.
+        </p>
       </div>
-    </div>
+
+      <Leaders getRows={getRows} onPickTeam={onPickTeam} onPickPlayer={onPickPlayer} />
+
+      <MarginChart rows={rows} onPickTeam={onPickTeam} />
+    </>
   )
 }
 
@@ -299,7 +339,15 @@ function Champions({ seasons, onPick, onSeason }) {
 
 // `seasons` is injectable so the all-seasons tables can be exercised against a season
 // set the real archive doesn't (yet) contain — no play-in team has ever won the title.
-export default function HistoryView({ season, onSeason, tz, onPick, onOpen, seasons = HISTORY }) {
+export default function HistoryView({
+  season,
+  onSeason,
+  tz,
+  onPick,
+  onOpen,
+  onPickPlayer,
+  seasons = HISTORY,
+}) {
   const [mode, setMode] = useState('season')
   // An unknown ?season= (a stale link, or one pointing at the current season) falls back
   // to the most recent archived year rather than rendering nothing.
@@ -315,7 +363,7 @@ export default function HistoryView({ season, onSeason, tz, onPick, onOpen, seas
             Every completed season since <strong>2020-21</strong> — the year the play-in
             tournament took its current form, which is what makes these seasons directly
             comparable with this one. Each carries its final standings, its play-in
-            ladder, its full bracket, and its statistical leaders.
+            ladder, its full bracket, and a full season of statistics.
           </p>
         </div>
         <div className="view-tools" role="group" aria-label="History mode">
@@ -333,22 +381,31 @@ export default function HistoryView({ season, onSeason, tz, onPick, onOpen, seas
         </div>
       </div>
 
-      {mode === 'season' && (
-        <>
-          <div className="hy-pick">
-            <label className="season-pick">
-              <span className="sr-only">Season</span>
-              <select value={year} onChange={(e) => onSeason?.(Number(e.target.value))}>
-                {HISTORY_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {HISTORY_BY_YEAR[y].label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <Season season={data} tz={tz} onPick={onPick} onOpen={onOpen} />
-        </>
+      {SEASON_SCOPED.has(mode) && (
+        <div className="hy-pick">
+          <label className="season-pick">
+            <span className="sr-only">Season</span>
+            <select value={year} onChange={(e) => onSeason?.(Number(e.target.value))}>
+              {HISTORY_YEARS.map((y) => (
+                <option key={y} value={y}>
+                  {HISTORY_BY_YEAR[y].label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {mode === 'season' && <Season season={data} tz={tz} onPick={onPick} onOpen={onOpen} />}
+
+      {mode === 'stats' && (
+        <SeasonStats
+          season={data}
+          tz={tz}
+          onPickTeam={onPick}
+          onPickPlayer={onPickPlayer}
+          onOpen={onOpen}
+        />
       )}
 
       {mode === 'playin' && (

@@ -1082,10 +1082,31 @@ select:hover,
 }
 
 .drill li {
+  padding: 0;
+}
+
+/* The row is a button when the caller wires one, a plain span otherwise — same box
+   either way, so the two forms sit identically in the list. */
+.drill-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 5px 2px;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.drill-row {
+  cursor: pointer;
+}
+
+button.drill-row:hover {
+  background: var(--card-hover);
 }
 
 .drill-date {

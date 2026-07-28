@@ -13,7 +13,7 @@ const PLAYIN_CUT = PLAYIN_SEEDS[PLAYIN_SEEDS.length - 1]
 // Single headline numbers, so these are stat tiles rather than a chart. The two
 // tiles with a story behind them expand into the actual games.
 
-function Tile({ label, value, sub, onClick, open }) {
+export function Tile({ label, value, sub, onClick, open }) {
   const Cmp = onClick ? 'button' : 'div'
   return (
     <Cmp className={`tile ${onClick ? 'tile-btn' : ''} ${open ? 'open' : ''}`} onClick={onClick}>
@@ -25,25 +25,30 @@ function Tile({ label, value, sub, onClick, open }) {
   )
 }
 
-function GameList({ games, tz, note }) {
+// Each row opens that game's box score when the caller wants it — a drill-down that
+// names five games and then can't show you any of them is a dead end.
+export function GameList({ games, tz, note, onOpen }) {
+  const Row = onOpen ? 'button' : 'span'
   return (
     <ul className="drill">
       {games.map((g) => (
         <li key={g.id}>
-          <span className="drill-date">{formatDate(g.tip, tz)}</span>
-          <TeamLogo abbr={g.away} size={18} />
-          <span className="drill-score">
-            {g.score[1]} – {g.score[0]}
-          </span>
-          <TeamLogo abbr={g.home} size={18} />
-          <span className="drill-note">{note(g)}</span>
+          <Row className="drill-row" onClick={onOpen ? () => onOpen(g) : undefined}>
+            <span className="drill-date">{formatDate(g.tip, tz)}</span>
+            <TeamLogo abbr={g.away} size={18} />
+            <span className="drill-score">
+              {g.score[1]} – {g.score[0]}
+            </span>
+            <TeamLogo abbr={g.home} size={18} />
+            <span className="drill-note">{note(g)}</span>
+          </Row>
         </li>
       ))}
     </ul>
   )
 }
 
-function TotalsStrip({ games, tz }) {
+function TotalsStrip({ games, tz, onOpen }) {
   const t = useMemo(() => seasonTotals(games), [games])
   const [open, setOpen] = useState(null)
   const toggle = (k) => setOpen((v) => (v === k ? null : k))
@@ -72,12 +77,13 @@ function TotalsStrip({ games, tz }) {
       </div>
 
       {open === 'ot' && (
-        <GameList games={t.otGames} tz={tz} note={(g) => (g.ot > 1 ? `${g.ot}OT` : 'OT')} />
+        <GameList games={t.otGames} tz={tz} onOpen={onOpen} note={(g) => (g.ot > 1 ? `${g.ot}OT` : 'OT')} />
       )}
       {open === 'close' && (
         <GameList
           games={[...t.nailbiters].sort((a, b) => a.margin - b.margin)}
           tz={tz}
+          onOpen={onOpen}
           note={(g) => `by ${g.margin}`}
         />
       )}
@@ -89,11 +95,14 @@ function TotalsStrip({ games, tz }) {
 // One category at a time = a single series, so no legend is needed; the heading
 // names it. Bars are a sequential blue, with the value direct-labelled.
 
-function Leaders({ onPickTeam, onPickPlayer }) {
+// `getRows(cat)` supplies the board for the chosen category: the live view computes it
+// from the committed PLAYERS table, the History tab reads the season's stored board (which
+// fetch-history built with this same leaderboard(), ties and qualifiers included).
+export function Leaders({ getRows, onPickTeam, onPickPlayer }) {
   const [cat, setCat] = useState(LEADER_CATEGORIES[0])
-  const rows = useMemo(() => leaderboard(cat.key, { limit: 10 }), [cat])
-  // rows is always non-empty with a positive top value for every committed category
-  // (leaderboard reads the PLAYERS table, not a prop), so this empty/zero guard can't fire.
+  const rows = useMemo(() => getRows(cat), [getRows, cat])
+  // rows is always non-empty with a positive top value for every committed category, so
+  // this empty/zero guard can't fire.
   /* v8 ignore next */
   const max = rows[0]?.value || 1
   const isPct = cat.key.endsWith('Pct')
@@ -122,7 +131,7 @@ function Leaders({ onPickTeam, onPickPlayer }) {
       <table className="leaders">
         <tbody>
           {rows.map((p) => (
-            <tr key={p.id}>
+            <tr key={`${p.rank}-${p.name}`}>
               <td className="lead-rank">{p.rank}</td>
               <td className="lead-team">
                 <button onClick={() => onPickTeam?.(p.team)} title={p.team}>
@@ -161,8 +170,7 @@ function Leaders({ onPickTeam, onPickPlayer }) {
 // those are per-100-possessions measures, and the public feeds don't expose
 // possession counts.
 
-function MarginChart({ games, onPickTeam }) {
-  const rows = useMemo(() => teamScoring(games), [games])
+export function MarginChart({ rows, onPickTeam }) {
   const span = Math.max(...rows.map((r) => Math.abs(r.netPpg)), 1)
 
   return (
@@ -327,16 +335,19 @@ function PlayoffRace({ games, onPickTeam }) {
   )
 }
 
-export default function StatsView({ games, tz, onPickTeam, onPickPlayer }) {
+// Stable identity so the Leaders memo doesn't recompute on every parent render.
+const liveLeaders = (cat) => leaderboard(cat.key, { limit: 10 })
+
+export default function StatsView({ games, tz, onPickTeam, onPickPlayer, onOpen }) {
   return (
     <section className="view">
       <div className="view-head">
         <h2>Stats</h2>
       </div>
-      <TotalsStrip games={games} tz={tz} />
-      <Leaders onPickTeam={onPickTeam} onPickPlayer={onPickPlayer} />
+      <TotalsStrip games={games} tz={tz} onOpen={onOpen} />
+      <Leaders getRows={liveLeaders} onPickTeam={onPickTeam} onPickPlayer={onPickPlayer} />
       <div className="grid-2">
-        <MarginChart games={games} onPickTeam={onPickTeam} />
+        <MarginChart rows={teamScoring(games)} onPickTeam={onPickTeam} />
         <PlayoffRace games={games} onPickTeam={onPickTeam} />
       </div>
     </section>

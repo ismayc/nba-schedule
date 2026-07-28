@@ -87,8 +87,9 @@ qualifier, so an older season would need a second format modelled.
 
 **What's committed, and what isn't.** A full season is ~870KB of games; five more would
 have quintupled the bundle. Each archived season keeps only its final conference
-standings, its ~91 play-in + playoff games, and its statistical leaders — ~200KB total
-(bundle 1.10MB → 1.29MB). Deliberately *not* committed:
+standings, its ~91 play-in + playoff games, its season totals, and its leader boards —
+~320KB total (bundle 1.10MB → 1.40MB, 224KB → 259KB gzipped). Deliberately *not*
+committed:
 
 - **The bracket and the ladder.** Both are rebuilt at runtime by the same
   `buildBracket()` / `buildPlayIn()` the live season uses. `buildBracket(games, standings)`
@@ -105,11 +106,23 @@ runs up to the season the app is on and drops any season with no champion, so th
 season joins by itself the week it ends.
 
 **The History tab** (`?view=history&season=YYYY`, `season` added to urlState like the
-Premier League sibling) has three modes: one season in full (bracket, ladder, both final
-tables, six leader categories); every team that has reached the playoffs through the
+Premier League sibling) has four modes: one season in full (bracket, ladder, both final
+tables); that season's **stats**; every team that has reached the playoffs through the
 play-in with its route and its run; and every champion with the Finals margin. The
 qualifier table is the one that only exists because the archive starts in 2020-21 — its
 best row is the 2022-23 Heat, an 8 seed out of the play-in who reached the Finals.
+
+**Stats by season** reuses the live Stats cards rather than reimplementing them:
+`StatsView` now exports `Tile`, `GameList`, `Leaders` and `MarginChart`, `Leaders` takes
+its board from a `getRows(cat)` supplier, and `MarginChart` takes rows instead of games
+(`stats.js` gained `rankScoring` + `seasonScoring`). So an archived season shows all nine
+leaderboards with the live tie handling and volume qualifiers, and a margin chart ranked
+by the same rule. Each season stores its boards as `{id, rank, value}` against a deduped
+player table (~63 players, full stat lines) — smaller than inlining, and it means a
+historical leader's pop-out shows *that* season's averages (Curry's 32.0 in 2020-21, not
+his current line). Totals that used to be derived from 1,230 games are committed as
+numbers, with the five closest and five highest-scoring games kept so the drill-downs
+survive; those rows are now clickable in the live view too, which they never were.
 
 Also: **the series dots are now buttons** onto each game's box score, across every round
 and in archived seasons too. They were the only per-game handle the bracket offered and

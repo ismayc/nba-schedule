@@ -26,7 +26,7 @@ snapshot of the season.
 | 🏆 **Playoffs** | Two conference brackets (East and West) into the Finals, where each slot is a best-of-seven series. Projected from current seeding until the real field is set. Below it, both **Play-In Tournaments** — every game, with the seed it settled and who it knocked out. |
 | 🎯 **Radial** | The same brackets as concentric rings — one wheel per conference, seeds outside and the conference champion in the middle — flanking the Finals. |
 | 📈 **Stats** | Season averages, league leaders across 8 categories, scoring margin, and the playoff race — by conference — with magic numbers. |
-| 📜 **History** | Every completed season back to **2020-21** — final standings, the play-in ladder, the full bracket and the season's leaders — plus two all-seasons tables: every team that reached the playoffs through the play-in and what it did with the seed, and every champion. |
+| 📜 **History** | Every completed season back to **2020-21**, in four modes: one season in full (final standings, play-in ladder, bracket); that season's **stats** (totals, the same nine leaderboards as the live view, scoring margin); every team that reached the playoffs through the play-in and what it did with the seed; and every champion. |
 
 **Star a team** from any game card, standings row, or team panel to highlight it
 across every view, filter the schedule to "My teams", and scope live alerts to it.
@@ -137,14 +137,30 @@ arbitrary: that is when the play-in reached its current 7–10 shape, so every a
 season is directly comparable with this one. (The 2020 Orlando restart ran a one-off
 qualifier; before that there was none.)
 
-Each season commits three things — its **final conference standings**, its **play-in and
-playoff games** (~91 rows), and its **statistical leaders**. The regular season's ~1,230
-games are summarised into the standings rather than committed, which is why six extra
-seasons cost ~200KB instead of ~5MB. Nothing about the bracket or the ladder is
-committed: both are rebuilt at runtime by the same `buildBracket()` / `buildPlayIn()` the
-current season uses, so an archived bracket cannot drift from the live one. Box scores
-aren't committed either — the detail modal fetches them from ESPN by event id, and every
-archived game has one.
+Each season commits four things:
+
+- its **final conference standings** — the computed table, not a scraped one;
+- its **play-in and playoff games** (~91 rows);
+- its **season totals** — points, home-win rate, overtimes, one-possession finishes, plus
+  the five closest and five highest-scoring nights;
+- its **leader boards** for all nine categories, as `{id, rank, value}` against a deduped
+  per-season player table (~63 players) carrying each one's full stat line.
+
+The regular season's ~1,230 games are summarised into those totals and standings rather
+than committed, which is why six extra seasons cost ~320KB instead of ~5MB (bundle
+1.10MB → 1.40MB, 224KB → 259KB gzipped).
+
+Nothing derived is committed. The bracket and the ladder are rebuilt at runtime by the
+same `buildBracket()` / `buildPlayIn()` the current season uses; the leader boards were
+built by the same `leaderboard()` (same tie handling, same volume qualifiers for the
+percentage categories); the scoring margin re-derives from points for and against via the
+same `rankScoring()`. An archived season renders through the live components, so it
+cannot drift from the live view. Box scores aren't committed either — the detail modal
+fetches them from ESPN by event id, and every archived game has one, down to the five
+closest games of 2020-21.
+
+The one live card with no historical meaning is the playoff race: magic numbers for a
+season that ended years ago. A finished season shows its notable games instead.
 
 ```bash
 npm run fetch:history        # rebuilds the archive (a season in progress is skipped)

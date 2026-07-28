@@ -9,6 +9,7 @@ import {
   finalsSummary,
 } from '../src/utils/history.js'
 import { CONFERENCE_BY_ABBR } from '../src/utils/standings.js'
+import { LEADER_CATEGORIES } from '../src/utils/stats.js'
 import { TEAM_BY_ABBR } from '../src/data/teams.js'
 
 // The archived seasons are checked against the real NBA record, not against the feed
@@ -212,6 +213,81 @@ describe('an unfinished season', () => {
   })
 })
 
+describe('the leader boards', () => {
+  it('covers every category the live Stats view offers', () => {
+    for (const s of HISTORY) {
+      for (const cat of LEADER_CATEGORIES) {
+        expect(s.leaders[cat.key].length).toBeGreaterThanOrEqual(10)
+      }
+    }
+  })
+
+  it('joins every board row to a stat line in that season\'s player table', () => {
+    for (const s of HISTORY) {
+      for (const board of Object.values(s.leaders)) {
+        for (const row of board) {
+          const p = s.players[row.id]
+          expect(p).toBeTruthy()
+          expect(typeof p.gamesPlayed).toBe('number')
+          expect(typeof row.value).toBe('number')
+        }
+      }
+    }
+  })
+
+  it('ranks with ties sharing a place, as the live board does', () => {
+    // 2022-23: Giddey and Westbrook tied on 4 triple-doubles, so both are 7th and the
+    // next player is 9th — the standard convention, not index + 1.
+    const td = HISTORY_BY_YEAR[2023].leaders.tripleDouble
+    expect(td[0]).toMatchObject({ rank: 1, value: 29 }) // Jokic
+    expect(td.filter((r) => r.rank === 7)).toHaveLength(2)
+    expect(td[8].rank).toBe(9)
+  })
+
+  it('applies the volume qualifier to the percentage categories', () => {
+    // A 1-for-1 night can't top FG%: every qualifier is a real rotation player.
+    for (const s of HISTORY) {
+      for (const row of s.leaders.fgPct) {
+        const p = s.players[row.id]
+        expect(p.avgFgAtt).toBeGreaterThanOrEqual(5)
+      }
+      for (const row of s.leaders.threePct) {
+        expect(s.players[row.id].avgThreeAtt).toBeGreaterThanOrEqual(2)
+      }
+    }
+  })
+})
+
+describe('the season totals', () => {
+  it('matches the games each season actually played', () => {
+    for (const s of HISTORY) {
+      const t = s.totals
+      // Every team's games summed is two per game.
+      const teamGames = [...s.standings.E, ...s.standings.W].reduce((n, r) => n + r.w + r.l, 0)
+      expect(t.played).toBe(teamGames / 2)
+      expect(t.combinedPpg).toBeCloseTo(t.points / t.played, 1)
+      // Home teams win more than they lose, in every season on record.
+      expect(t.homeWins / t.played).toBeGreaterThan(0.5)
+      expect(t.closest).toHaveLength(5)
+      expect(t.highest).toHaveLength(5)
+      // The closest games are the closest: none can be beaten by a highest-scoring one.
+      const margin = (g) => Math.abs(g.score[0] - g.score[1])
+      expect(Math.max(...t.closest.map(margin))).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('keeps only those ten regular-season games, each with an id to open', () => {
+    for (const s of HISTORY) {
+      for (const g of [...s.totals.closest, ...s.totals.highest]) {
+        expect(g.id).toMatch(/^\d+$/)
+        expect(g.score).toHaveLength(2)
+        // They are NOT in the committed games list — that is postseason only.
+        expect(s.games.some((x) => x.id === g.id)).toBe(false)
+      }
+    }
+  })
+})
+
 describe('the team abbreviations in the archive', () => {
   it('all resolve against the current 30 franchises', () => {
     // Nothing has moved or been renamed since 2020-21, which is why the history views
@@ -220,7 +296,7 @@ describe('the team abbreviations in the archive', () => {
     for (const s of HISTORY) {
       for (const conf of ['E', 'W']) s.standings[conf].forEach((r) => seen.add(r.abbr))
       for (const g of s.games) seen.add(g.home), seen.add(g.away)
-      for (const list of Object.values(s.leaders)) list.forEach((p) => seen.add(p.team))
+      Object.values(s.players).forEach((p) => seen.add(p.team))
     }
     expect(seen.size).toBe(30)
     for (const abbr of seen) expect(TEAM_BY_ABBR[abbr]).toBeTruthy()

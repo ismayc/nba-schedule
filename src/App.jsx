@@ -555,6 +555,7 @@ export default function App() {
             tz={tz}
             onPickTeam={setTeamPanel}
             onPickPlayer={setPlayerModal}
+            onOpen={setDetail}
           />
         )}
         {view === 'history' && (
@@ -563,6 +564,7 @@ export default function App() {
             onSeason={setSeason}
             tz={tz}
             onPick={setTeamPanel}
+            onPickPlayer={setPlayerModal}
             onOpen={setDetail}
           />
         )}

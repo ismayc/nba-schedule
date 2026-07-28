@@ -57,9 +57,6 @@ describe('HistoryView — one season', () => {
     expect(container.querySelectorAll('.pi-game')).toHaveLength(6)
     // Both conference tables, all 30 teams.
     expect(container.querySelectorAll('.standings tbody tr')).toHaveLength(30)
-    // Six leader categories, ten deep.
-    expect(container.querySelectorAll('.hy-leader-cat')).toHaveLength(6)
-    expect(container.querySelectorAll('.hy-leader-list li')).toHaveLength(60)
   })
 
   it('lists the real final table for that season', () => {
@@ -86,12 +83,112 @@ describe('HistoryView — one season', () => {
     )
   })
 
-  it('routes a leader click to that player’s team', async () => {
+
+})
+
+// The live Stats view's cards, driven by an archived season. Every number here is a real
+// 2022-23 figure, so a bad join or a wrong denominator fails rather than merely rendering.
+describe('HistoryView — stats for one season', () => {
+  const stats = async (season = 2023, props = {}) => {
+    const utils = mount({ season, ...props })
+    await userEvent.click(mode('Stats'))
+    return utils
+  }
+
+  it('keeps the season picker, so stats follow the chosen year', async () => {
+    const { container } = await stats(2021)
+    expect(container.querySelector('.season-pick select')).toHaveValue('2021')
+    // 2020-21 was the 72-game season.
+    expect(container.querySelector('.tile-value')).toHaveTextContent('1,080')
+  })
+
+  it('shows the season totals it can no longer derive from games', async () => {
+    const { container } = await stats()
+    const tiles = [...container.querySelectorAll('.tile')].map((t) => t.textContent)
+    expect(tiles[0]).toMatch(/1,230Games played/)
+    expect(tiles[1]).toMatch(/282,127Points scored/)
+    expect(tiles[3]).toMatch(/58%Home win rate714 of 1,230/)
+    expect(tiles[4]).toMatch(/79Overtime games/)
+  })
+
+  it('drills into the closest games, each opening its box score', async () => {
+    const onOpen = vi.fn()
+    const { container } = await stats(2023, { onOpen })
+    await userEvent.click(container.querySelectorAll('.tile-btn')[0])
+
+    const rows = container.querySelectorAll('.drill li')
+    expect(rows).toHaveLength(5)
+    // The five closest games of 2022-23 were all won by a single point.
+    for (const r of rows) expect(r.querySelector('.drill-note')).toHaveTextContent('by 1')
+
+    await userEvent.click(container.querySelector('button.drill-row'))
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String) }))
+
+    // Clicking the open tile again collapses it.
+    await userEvent.click(container.querySelectorAll('.tile-btn')[0])
+    expect(container.querySelector('.drill')).toBeNull()
+  })
+
+  it('drills into the highest-scoring games by combined total', async () => {
+    const { container } = await stats()
+    await userEvent.click(container.querySelectorAll('.tile-btn')[1])
+
+    const notes = [...container.querySelectorAll('.drill-note')].map((n) => n.textContent)
+    expect(notes).toHaveLength(5)
+    // 2022-23's wildest night: Kings at Clippers, 176–175 in double overtime.
+    expect(notes[0]).toBe('351 total')
+    // Listed highest first.
+    const totals = notes.map((n) => Number(n.replace(' total', '')))
+    expect(totals).toEqual([...totals].sort((a, b) => b - a))
+  })
+
+  it('renders a full leaderboard for every category, ties and all', async () => {
+    const { container } = await stats()
+    expect(container.querySelectorAll('.cats .cat')).toHaveLength(9)
+    // Opens on points: Embiid led 2022-23 at 33.1.
+    const first = container.querySelector('.leaders tr')
+    expect(first).toHaveTextContent('Joel Embiid')
+    expect(first).toHaveTextContent('33.1')
+
+    // A percentage category formats as a percentage…
+    await userEvent.click([...container.querySelectorAll('.cat')].find((b) => b.textContent === 'FG%'))
+    expect(container.querySelector('.leaders tr')).toHaveTextContent('73.2%')
+
+    // …and a counting category stays a whole number, with ties sharing a rank.
+    await userEvent.click([...container.querySelectorAll('.cat')].find((b) => b.textContent === 'TD'))
+    const td = [...container.querySelectorAll('.leaders tr')].map((r) => r.textContent)
+    expect(td[0]).toBe('1Nikola JokicC29')
+    expect(td.filter((t) => t.startsWith('7'))).toHaveLength(2)
+  })
+
+  it('opens a leader’s pop-out with that season’s stat line, not this season’s', async () => {
+    const onPickPlayer = vi.fn()
+    const { container } = await stats(2023, { onPickPlayer })
+    await userEvent.click(container.querySelector('.lead-player'))
+    // Embiid's real 2022-23 line — the modal needs the whole row, not just the value.
+    expect(onPickPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Joel Embiid', gamesPlayed: 66, avgRebounds: 10.2 })
+    )
+  })
+
+  it('ranks the scoring margin from points for and against', async () => {
+    const { container } = await stats()
+    const rows = container.querySelectorAll('.margin-row')
+    expect(rows).toHaveLength(30)
+    // 2022-23 Boston: best net rating in the league at +6.5 (117.9 scored, 111.4 allowed).
+    expect(rows[0]).toHaveTextContent('Celtics')
+    expect(rows[0]).toHaveTextContent('+6.5')
+    expect(rows[0]).toHaveTextContent('117.9')
+    expect(rows[0]).toHaveTextContent('111.4')
+    // Worst is negative, so both arms of the diverging scale render.
+    expect(rows[29].querySelector('.margin-bar.neg')).toBeTruthy()
+  })
+
+  it('routes a margin-chart team click to the team panel', async () => {
     const onPick = vi.fn()
-    const { container } = mount({ season: 2023, onPick })
-    await userEvent.click(container.querySelector('.hy-leader-list .hy-team'))
-    // 2022-23 scoring leader: Joel Embiid, Philadelphia.
-    expect(onPick).toHaveBeenCalledWith('PHI')
+    const { container } = await stats(2023, { onPick })
+    await userEvent.click(container.querySelector('.margin-team'))
+    expect(onPick).toHaveBeenCalledWith('BOS')
   })
 })
 
