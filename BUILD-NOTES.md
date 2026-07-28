@@ -78,6 +78,43 @@ Verified against the real bracket: East 7 PHI / 8 ORL, West 7 POR / 8 PHX — ex
 7 and 8 seeds the committed first round used (a test asserts that cross-check). Play-in
 games do not count toward the standings, which `countsForStandings` already enforced.
 
+## Season archive + History tab — DONE (2026-07-27)
+
+Six completed seasons (2020-21 → 2025-26) in `src/data/history.js`, built by
+`scripts/fetch-history.mjs` (`npm run fetch:history`). 2020-21 is the floor because that
+is when the play-in took its current 7–10 shape — the 2020 Orlando restart ran a one-off
+qualifier, so an older season would need a second format modelled.
+
+**What's committed, and what isn't.** A full season is ~870KB of games; five more would
+have quintupled the bundle. Each archived season keeps only its final conference
+standings, its ~91 play-in + playoff games, and its statistical leaders — ~200KB total
+(bundle 1.10MB → 1.29MB). Deliberately *not* committed:
+
+- **The bracket and the ladder.** Both are rebuilt at runtime by the same
+  `buildBracket()` / `buildPlayIn()` the live season uses. `buildBracket(games, standings)`
+  gained an optional second argument for exactly this: an archived season has no
+  regular-season games to seed from, so it passes its committed table in. An archived
+  bracket that rendered through a second code path could silently disagree with the live
+  one.
+- **Box scores.** The detail modal already fetches them from ESPN by event id, and every
+  archived game has one — so a 2021 dot opens a real box score.
+
+`scripts/fetch-schedule.mjs` grew exports (`fetchTeams`/`fetchSchedule`/`fetchLeaders`)
+and a `process.argv[1]` guard so it can be imported without running its CLI. The archive
+runs up to the season the app is on and drops any season with no champion, so the current
+season joins by itself the week it ends.
+
+**The History tab** (`?view=history&season=YYYY`, `season` added to urlState like the
+Premier League sibling) has three modes: one season in full (bracket, ladder, both final
+tables, six leader categories); every team that has reached the playoffs through the
+play-in with its route and its run; and every champion with the Finals margin. The
+qualifier table is the one that only exists because the archive starts in 2020-21 — its
+best row is the 2022-23 Heat, an 8 seed out of the play-in who reached the Finals.
+
+Also: **the series dots are now buttons** onto each game's box score, across every round
+and in archived seasons too. They were the only per-game handle the bracket offered and
+were inert.
+
 ## Still owed (polish + a re-sync)
 
 1. **Game-detail re-sync.** WNBA is mid-refactor replacing the `Lineups` panel with a

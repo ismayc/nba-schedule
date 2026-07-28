@@ -1689,10 +1689,34 @@ select:hover,
   margin-left: auto;
 }
 
-.dots i {
+.dots i,
+.dots .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+}
+
+/* A played dot is a button onto that game's box score. Kept visually identical to the
+   old inert dot — only the cursor and a hover ring say it's live — but given a real
+   touch target so it's tappable on a phone. */
+.dots .dot {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  appearance: none;
+}
+
+.dots .dot::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.dots .dot:hover,
+.dots .dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .dot-w {
@@ -3234,6 +3258,89 @@ select:hover,
     right: 16px;
     max-width: none;
   }
+}
+
+/* ── History ────────────────────────────────────────────────────────── */
+/* Archived seasons. The bracket, play-in ladder and cards are the live components, so
+   this only styles what's new: the mode switch, the season picker, and the two
+   all-seasons tables. */
+.view-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hy-pick {
+  margin-bottom: 12px;
+}
+
+.hy-note {
+  margin-bottom: 12px;
+  max-width: none;
+}
+
+.hy-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hy-team:hover {
+  color: var(--accent);
+}
+
+.hy-year {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hy-table td,
+.hy-table th {
+  font-size: 13px;
+}
+
+/* The champion's row, in a table that is mostly near-misses. */
+.hy-champ-row {
+  background: var(--accent-soft);
+}
+
+.hy-leaders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 20px;
+  margin-bottom: 10px;
+}
+
+.hy-leader-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.hy-leader-list li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+}
+
+.hy-leader-v {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────── */

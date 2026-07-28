@@ -27,15 +27,33 @@ const ROUND_SHORT = { R1: '1st Round', CSF: 'Conf. Semis', CF: 'Conf. Finals', F
 
 // One dot per game in the series: filled for a played game, hollow for one still to
 // come. Reads faster than a scoreline when scanning a bracket.
-function SeriesDots({ series, team }) {
+//
+// Each dot that HAS a game is a button onto that game's box score — the dots are the
+// only per-game handle the bracket offers, so making them inert wasted the one place
+// you'd naturally click to ask "what happened in game 5?". Hollow dots are games that
+// don't exist (a series that ended in five has two of them), so they stay inert.
+function SeriesDots({ series, team, onOpen }) {
   const played = series.games.filter((g) => g.score)
   return (
-    <span className="dots" aria-hidden="true">
+    <span className="dots">
       {Array.from({ length: series.bestOf }, (_, i) => {
         const g = played[i]
-        if (!g) return <i key={i} className="dot-empty" />
+        if (!g) return <i key={i} className="dot-empty" aria-hidden="true" />
         const winner = g.score[0] > g.score[1] ? g.home : g.away
-        return <i key={i} className={winner === team ? 'dot-w' : 'dot-l'} />
+        const cls = winner === team ? 'dot-w' : 'dot-l'
+        const label = `Game ${g.game ?? i + 1}: ${TEAM_BY_ABBR[g.away]?.name} ${g.score[1]}, ${
+          TEAM_BY_ABBR[g.home]?.name
+        } ${g.score[0]}`
+        return (
+          <button
+            key={i}
+            type="button"
+            className={`dot ${cls}`}
+            title={label}
+            aria-label={label}
+            onClick={() => onOpen?.(g)}
+          />
+        )
       })}
     </span>
   )
@@ -70,7 +88,7 @@ function Side({ abbr, label, seed, wins, isWinner, decided, onPick }) {
   )
 }
 
-function Series({ series, onPick, tz }) {
+function Series({ series, onPick, tz, onOpen }) {
   const [a, b] = series.order
   const decided = series.complete
   const next = series.games.find((g) => !g.score)
@@ -101,7 +119,7 @@ function Series({ series, onPick, tz }) {
       />
       <div className="bx-foot">
         <span className="bx-bo">Best of {series.bestOf}</span>
-        {series.games.length > 0 && <SeriesDots series={series} team={a} />}
+        {series.games.length > 0 && <SeriesDots series={series} team={a} onOpen={onOpen} />}
         {next && <span className="bx-next">Game {next.game} · {formatDate(next.tip, tz)}</span>}
         {series.live && <span className="bx-live">● LIVE</span>}
       </div>
@@ -112,7 +130,7 @@ function Series({ series, onPick, tz }) {
 // One conference's fixed fan: First Round (4) → Conference Semifinals (2) → Conference
 // Finals (1). The `conf` flag lets the West mirror so both conference finals sit next to
 // the Finals in the centre.
-function ConferenceBracket({ conf, data, onPick, tz }) {
+function ConferenceBracket({ conf, data, onPick, tz, onOpen }) {
   return (
     <div className={`bx-conf bx-conf-${conf === 'E' ? 'east' : 'west'}`}>
       <h3 className="bx-conf-title">{CONFERENCES[conf]}</h3>
@@ -120,18 +138,18 @@ function ConferenceBracket({ conf, data, onPick, tz }) {
         <div className="bx-col">
           <h4 className="bx-round">{PLAYOFF_ROUNDS.R1}</h4>
           {data.r1.map((s, i) => (
-            <Series key={i} series={s} onPick={onPick} tz={tz} />
+            <Series key={i} series={s} onPick={onPick} tz={tz} onOpen={onOpen} />
           ))}
         </div>
         <div className="bx-col">
           <h4 className="bx-round">{PLAYOFF_ROUNDS.CSF}</h4>
           {data.csf.map((s, i) => (
-            <Series key={i} series={s} onPick={onPick} tz={tz} />
+            <Series key={i} series={s} onPick={onPick} tz={tz} onOpen={onOpen} />
           ))}
         </div>
         <div className="bx-col bx-col-cf">
           <h4 className="bx-round">{PLAYOFF_ROUNDS.CF}</h4>
-          <Series series={data.cf} onPick={onPick} tz={tz} />
+          <Series series={data.cf} onPick={onPick} tz={tz} onOpen={onOpen} />
         </div>
       </div>
     </div>
@@ -141,7 +159,7 @@ function ConferenceBracket({ conf, data, onPick, tz }) {
 // Phones: one round at a time, chosen from a pill selector, as a full-width vertical
 // list — the same pattern world-cup-viewer uses so the bracket needs no horizontal
 // scrolling on a phone. Each round shows both conferences' series under sub-headers.
-function MobileBracket({ rounds, active, setActive, onPick, tz }) {
+function MobileBracket({ rounds, active, setActive, onPick, tz, onOpen }) {
   /* v8 ignore next -- `active` is always one of the four round keys (initialised from a round key, only ever set to r.key), so find() never misses; the `|| rounds[0]` guard is unreachable */
   const round = rounds.find((r) => r.key === active) || rounds[0]
   return (
@@ -164,7 +182,7 @@ function MobileBracket({ rounds, active, setActive, onPick, tz }) {
           <Fragment key={g.conf ?? 'final'}>
             {g.conf && <h4 className="bx-mobile-conf">{CONFERENCES[g.conf]}</h4>}
             {g.series.map((s, i) => (
-              <Series key={i} series={s} onPick={onPick} tz={tz} />
+              <Series key={i} series={s} onPick={onPick} tz={tz} onOpen={onOpen} />
             ))}
           </Fragment>
         ))}
@@ -275,8 +293,15 @@ function PlayInResults({ results, tz, onOpen }) {
   )
 }
 
-export default function Bracket({ games, tz, onPick, onOpen }) {
-  const bracket = useMemo(() => buildBracket(games), [games])
+// The bracket itself, without the page heading around it: banners, the two conference
+// fans (or the mobile round selector), the play-in ladder, and the Cup footnote.
+//
+// Split out from the Playoffs view so the History tab can render an archived season
+// through exactly this component. A historical season ships its final standings and only
+// its postseason games, so it passes `standings` in rather than having them derived from
+// regular-season results it doesn't carry.
+export function BracketBody({ games, standings, tz, onPick, onOpen }) {
+  const bracket = useMemo(() => buildBracket(games, standings), [games, standings])
   const { conferences, final, champion, projected, playIn, playInResults } = bracket
   // Real play-in games replace the projected 7–10 field listing: once they're scheduled,
   // the ladder itself says everything the standings snapshot did, and more.
@@ -305,19 +330,7 @@ export default function Bracket({ games, tz, onPick, onOpen }) {
   const [active, setActive] = useState(() => (firstLive ?? rounds[rounds.length - 1]).key)
 
   return (
-    <section className="view">
-      <div className="view-head">
-        <div>
-          <h2>Playoffs</h2>
-          <p className="sub">
-            Eight teams per conference: seeds 1–6 qualify outright, seeds 7–8 come through
-            a play-in among 7–10. Every round is best-of-7 and the bracket is fixed —
-            1v8, 4v5, 2v7, 3v6, no re-seeding. The two conference champions meet in the
-            Finals.
-          </p>
-        </div>
-      </div>
-
+    <>
       {projected && (
         <p className="banner">
           <strong>Projected.</strong> The postseason hasn&apos;t started, so this is the
@@ -327,24 +340,33 @@ export default function Bracket({ games, tz, onPick, onOpen }) {
 
       {champion && (
         <p className="banner banner-champ">
-          🏆 <strong>{TEAM_BY_ABBR[champion]?.displayName}</strong> win the title.
+          🏆 <strong>{TEAM_BY_ABBR[champion]?.displayName}</strong> win the title, beating{' '}
+          {TEAM_BY_ABBR[final.loser]?.displayName} {final.wins[champion]}–{final.wins[final.loser]}{' '}
+          in the Finals.
         </p>
       )}
 
       {isMobile ? (
-        <MobileBracket rounds={rounds} active={active} setActive={setActive} onPick={onPick} tz={tz} />
+        <MobileBracket
+          rounds={rounds}
+          active={active}
+          setActive={setActive}
+          onPick={onPick}
+          tz={tz}
+          onOpen={onOpen}
+        />
       ) : (
         <div className="bx">
-          <ConferenceBracket conf="E" data={conferences.E} onPick={onPick} tz={tz} />
+          <ConferenceBracket conf="E" data={conferences.E} onPick={onPick} tz={tz} onOpen={onOpen} />
 
           <div className="bx-conf bx-conf-final">
             <h3 className="bx-conf-title">{PLAYOFF_ROUNDS.Final}</h3>
             <div className="bx-col bx-col-final">
-              <Series series={final} onPick={onPick} tz={tz} />
+              <Series series={final} onPick={onPick} tz={tz} onOpen={onOpen} />
             </div>
           </div>
 
-          <ConferenceBracket conf="W" data={conferences.W} onPick={onPick} tz={tz} />
+          <ConferenceBracket conf="W" data={conferences.W} onPick={onPick} tz={tz} onOpen={onOpen} />
         </div>
       )}
 
@@ -397,6 +419,26 @@ export default function Bracket({ games, tz, onPick, onOpen }) {
           </span>
         </p>
       )}
+    </>
+  )
+}
+
+export default function Bracket({ games, tz, onPick, onOpen }) {
+  return (
+    <section className="view">
+      <div className="view-head">
+        <div>
+          <h2>Playoffs</h2>
+          <p className="sub">
+            Eight teams per conference: seeds 1–6 qualify outright, seeds 7–8 come through
+            a play-in among 7–10. Every round is best-of-7 and the bracket is fixed —
+            1v8, 4v5, 2v7, 3v6, no re-seeding. The two conference champions meet in the
+            Finals.
+          </p>
+        </div>
+      </div>
+
+      <BracketBody games={games} tz={tz} onPick={onPick} onOpen={onOpen} />
     </section>
   )
 }

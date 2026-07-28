@@ -11,7 +11,7 @@
 //   node scripts/fetch-schedule.mjs [--season 2026] [--no-logos]
 
 import { writeFile, mkdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -23,7 +23,7 @@ const SEASON = Number(args[args.indexOf('--season') + 1]) || new Date().getFullY
 const WITH_LOGOS = !args.includes('--no-logos')
 
 // "2025-26" from the ESPN ending-year 2026.
-const seasonLabel = (endYear) => `${endYear - 1}-${String(endYear).slice(2)}`
+export const seasonLabel = (endYear) => `${endYear - 1}-${String(endYear).slice(2)}`
 
 // ESPN seasonType ids. 1=preseason (skipped), 2=regular, 3=postseason, 4=all-star,
 // 5=play-in. The play-in is its OWN season type in ESPN's feed — it is not part of
@@ -50,7 +50,7 @@ async function getJson(url, tries = 3) {
   }
 }
 
-async function fetchTeams() {
+export async function fetchTeams() {
   const d = await getJson(`${SITE}/teams`)
   return d.sports[0].leagues[0].teams
     .map(({ team: t }) => ({
@@ -160,7 +160,7 @@ function normalizeEvent(ev) {
   }
 }
 
-async function fetchSchedule(teams) {
+export async function fetchSchedule(teams, season = SEASON) {
   const byId = new Map()
   // One team-schedule call per team covers the whole season; each game appears twice
   // (once per team), so dedupe by event id.
@@ -169,7 +169,7 @@ async function fetchSchedule(teams) {
       const seen = []
       for (const type of [2, 3, 5]) {
         const d = await getJson(
-          `${SITE}/teams/${t.abbr}/schedule?season=${SEASON}&seasontype=${type}`
+          `${SITE}/teams/${t.abbr}/schedule?season=${season}&seasontype=${type}`
         )
         seen.push(...(d.events || []))
       }
@@ -293,9 +293,9 @@ const LEADER_FIELDS = {
 const round = (v, p = 1) =>
   typeof v === 'number' && Number.isFinite(v) ? Number(v.toFixed(p)) : null
 
-async function fetchLeaders() {
+export async function fetchLeaders(season = SEASON) {
   const d = await getJson(
-    `${WEB}/statistics/byathlete?region=us&lang=en&season=${SEASON}&seasontype=2&limit=300`
+    `${WEB}/statistics/byathlete?region=us&lang=en&season=${season}&seasontype=2&limit=300`
   )
 
   // ESPN stat name → [categoryIndex, valueIndex], from the top-level column definitions.
@@ -435,7 +435,10 @@ async function main() {
   console.log('Done.')
 }
 
-main().catch((err) => {
-  console.error(`\nfetch-schedule failed:\n${err.message}`)
-  process.exit(1)
-})
+// Importing this module (fetch-history.mjs reuses its fetchers) must not run the CLI.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(`\nfetch-schedule failed:\n${err.message}`)
+    process.exit(1)
+  })
+}

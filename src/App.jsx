@@ -20,6 +20,7 @@ import Toasts from './components/Toasts.jsx'
 import TeamPanel from './components/TeamPanel.jsx'
 import PlayerModal from './components/PlayerModal.jsx'
 import ServicesModal from './components/ServicesModal.jsx'
+import HistoryView from './components/HistoryView.jsx'
 import { detectEvents, eventKey } from './services/alerts.js'
 import TeamLogo from './components/TeamLogo.jsx'
 
@@ -30,6 +31,7 @@ const VIEWS = [
   { id: 'playoffs', label: '🏆 Playoffs' },
   { id: 'radial', label: '🎯 Radial' },
   { id: 'stats', label: '📈 Stats' },
+  { id: 'history', label: '📜 History' },
 ]
 
 const LIVE_REFRESH_MS = 30_000
@@ -70,6 +72,9 @@ export default function App() {
     }
   })
   const [team, setTeam] = useState(initial.team)
+  // Which archived season the History view is showing. In the URL (like the Premier
+  // League sibling) so a link to a past season is shareable.
+  const [season, setSeason] = useState(initial.season)
   const [onlyFollowed, setOnlyFollowed] = useState(initial.mine)
   // Off by default (194 of this season's 332 games are already played, so opening on the
   // season opener in May would bury today under months of finals), but remembered
@@ -192,8 +197,11 @@ export default function App() {
 
   // Keep the URL in step with the view so any state is shareable.
   useEffect(() => {
-    writeState({ view, tz, team, hide: hideScores, mine: onlyFollowed, past: showPast }, detectedTz)
-  }, [view, tz, team, hideScores, onlyFollowed, showPast, detectedTz])
+    writeState(
+      { view, tz, team, hide: hideScores, mine: onlyFollowed, past: showPast, season },
+      detectedTz
+    )
+  }, [view, tz, team, hideScores, onlyFollowed, showPast, season, detectedTz])
 
   // Remember spoiler-free mode per-device, like a followed team (theme and alerts persist
   // the same way). A shared ?hide= link still overrides this on load.
@@ -547,6 +555,15 @@ export default function App() {
             tz={tz}
             onPickTeam={setTeamPanel}
             onPickPlayer={setPlayerModal}
+          />
+        )}
+        {view === 'history' && (
+          <HistoryView
+            season={season}
+            onSeason={setSeason}
+            tz={tz}
+            onPick={setTeamPanel}
+            onOpen={setDetail}
           />
         )}
       </main>

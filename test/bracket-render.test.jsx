@@ -100,6 +100,66 @@ describe('Bracket before the postseason', () => {
   })
 })
 
+// The dots are the bracket's only per-game handle, so they have to reach the box score.
+describe('the series dots', () => {
+  it('opens the right game — including deep into a series and in later rounds', async () => {
+    const onOpen = vi.fn()
+    const { container } = render(<Bracket games={GAMES} tz={TZ} onOpen={onOpen} />)
+
+    // Game 5 of the first series shown.
+    const first = container.querySelector('.bx-series')
+    const dots = first.querySelectorAll('.dots .dot')
+    await userEvent.click(dots[4])
+    expect(onOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ round: 'R1', game: 5, seasonType: 'playoffs' })
+    )
+
+    // And the Finals, at the other end of the bracket.
+    const finals = container.querySelector('.bx-col-final .bx-series')
+    await userEvent.click(finals.querySelectorAll('.dots .dot')[0])
+    expect(onOpen).toHaveBeenLastCalledWith(
+      expect.objectContaining({ round: 'Final', game: 1 })
+    )
+  })
+
+  it('labels each dot with the game it opens', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    const dot = container.querySelector('.dots .dot')
+    // Whatever the first series is, the label carries both scores.
+    expect(dot).toHaveAccessibleName(/Game 1: .+ \d+, .+ \d+/)
+  })
+
+  it('gives a played dot a button and leaves an unplayed one inert', () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    // The Finals went five, so two of its seven dots are hollow and not clickable.
+    const finals = container.querySelector('.bx-col-final .bx-series .dots')
+    expect(finals.querySelectorAll('.dot')).toHaveLength(5)
+    expect(finals.querySelectorAll('.dot-empty')).toHaveLength(2)
+    expect(finals.querySelectorAll('.dot-empty button')).toHaveLength(0)
+  })
+
+  it('survives a click with no handler wired', async () => {
+    const { container } = render(<Bracket games={GAMES} tz={TZ} />)
+    await userEvent.click(container.querySelector('.dots .dot'))
+    expect(container.querySelector('.dots .dot')).toBeInTheDocument()
+  })
+
+  it('numbers a dot by its position when the feed gave the game no number', () => {
+    // ESPN's series headline is prose ("East 1st Round - Game 1"); a season where it
+    // doesn't parse must still label the dot rather than say "Game undefined".
+    const unnumbered = GAMES.map((g) => (g.round === 'R1' ? { ...g, game: undefined } : g))
+    const { container } = render(<Bracket games={unnumbered} tz={TZ} />)
+    expect(container.querySelector('.bx-series .dots .dot')).toHaveAccessibleName(/^Game 1: /)
+  })
+
+  it('opens a play-in game from the ladder as well', async () => {
+    const onOpen = vi.fn()
+    const { container } = render(<Bracket games={GAMES} tz={TZ} onOpen={onOpen} />)
+    await userEvent.click(container.querySelector('.pi-teams'))
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ seasonType: 'playin' }))
+  })
+})
+
 // The ladder that feeds the bracket, rendered under it. Every assertion is about what a
 // result MEANT — a seed taken or a season ended — not just that two names appeared.
 describe('the play-in tournament section', () => {

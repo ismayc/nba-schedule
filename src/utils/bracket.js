@@ -231,8 +231,14 @@ function buildConferenceBracket(conf, seeds, series) {
 
 // The whole postseason: two conference brackets and the Finals between their champions.
 // `playIn` carries seeds 7–10 of each conference for the play-in display.
-export function buildBracket(games) {
-  const byConf = conferenceStandings(games)
+//
+// `standings` lets a caller supply the seeded conference tables instead of deriving them
+// from `games`. A historical season commits its final standings and only its postseason
+// games (see data/history.js), so there are no regular-season results to seed from —
+// passing them in means an archived bracket renders through this same function rather
+// than a parallel one.
+export function buildBracket(games, standings) {
+  const byConf = standings ?? conferenceStandings(games)
   const series = buildSeries(games)
   const projected = series.length === 0
 
