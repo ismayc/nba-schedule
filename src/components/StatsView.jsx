@@ -98,7 +98,12 @@ function TotalsStrip({ games, tz, onOpen }) {
 // `getRows(cat)` supplies the board for the chosen category: the live view computes it
 // from the committed PLAYERS table, the History tab reads the season's stored board (which
 // fetch-history built with this same leaderboard(), ties and qualifiers included).
-export function Leaders({ getRows, onPickTeam, onPickPlayer }) {
+// `showTeam` is off for archived seasons. ESPN's per-athlete stats carry the player's
+// CURRENT team even when the season is asked for, and only for players who later moved —
+// so a historical board would silently mix correct and anachronistic badges (2023's
+// scoring leader Jewell Loyd reads as an Ace, not a Storm). The name, rank and value are
+// season-accurate; the team is not, so it isn't shown.
+export function Leaders({ getRows, onPickTeam, onPickPlayer, showTeam = true }) {
   const [cat, setCat] = useState(LEADER_CATEGORIES[0])
   const rows = useMemo(() => getRows(cat), [getRows, cat])
   // rows is always non-empty with a positive top value for every committed category, so
@@ -133,11 +138,13 @@ export function Leaders({ getRows, onPickTeam, onPickPlayer }) {
           {rows.map((p) => (
             <tr key={`${p.rank}-${p.name}`}>
               <td className="lead-rank">{p.rank}</td>
-              <td className="lead-team">
-                <button onClick={() => onPickTeam?.(p.team)} title={p.team}>
-                  <TeamLogo abbr={p.team} size={20} />
-                </button>
-              </td>
+              {showTeam && (
+                <td className="lead-team">
+                  <button onClick={() => onPickTeam?.(p.team)} title={p.team}>
+                    <TeamLogo abbr={p.team} size={20} />
+                  </button>
+                </td>
+              )}
               <td className="lead-name">
                 <button className="lead-player" onClick={() => onPickPlayer?.(p)}>
                   {p.name}
