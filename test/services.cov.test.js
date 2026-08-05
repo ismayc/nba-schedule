@@ -277,6 +277,21 @@ describe('fetchGameSummary parsing edge cases', () => {
     expect(teamStats).toBeNull()
   })
 
+  it('skips a side-less team entry and bolds neither side on a tied stat', async () => {
+    stub({
+      boxscore: {
+        teams: [
+          { statistics: [{ name: 'assists', displayValue: '99' }] }, // no homeAway → ignored
+          { homeAway: 'away', statistics: [{ name: 'assists', displayValue: '20' }] },
+          { homeAway: 'home', statistics: [{ name: 'assists', displayValue: '20' }] },
+        ],
+      },
+    })
+    const { teamStats } = await fetchGameSummary('g1')
+    // The homeAway-less entry never reaches byHA, so its 99 is nowhere in the rows.
+    expect(teamStats).toEqual([{ label: 'AST', away: '20', home: '20', better: null }])
+  })
+
   it('returns null when the request itself fails', async () => {
     globalThis.fetch = vi.fn(async () => ({ ok: false }))
     expect(await fetchGameSummary('g1')).toBeNull()

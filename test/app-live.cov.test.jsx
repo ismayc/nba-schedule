@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // Keep the game-detail summary/player off the network and deterministic.
@@ -74,6 +74,23 @@ const liveEvent = (id = UPCOMING) => ({
       competitors: [
         { homeAway: 'home', score: { value: 60 } },
         { homeAway: 'away', score: { value: 58 } },
+      ],
+    },
+  ],
+})
+// The same game finished, so a poll carrying it raises a 'final' moment.
+const finalEvent = (id = UPCOMING) => ({
+  id,
+  competitions: [
+    {
+      status: {
+        period: 4,
+        displayClock: '0:00',
+        type: { state: 'post', completed: true, shortDetail: 'Final' },
+      },
+      competitors: [
+        { homeAway: 'home', score: { value: 82 } },
+        { homeAway: 'away', score: { value: 79 } },
       ],
     },
   ],
@@ -198,6 +215,46 @@ describe('live alerts fire toasts', () => {
     const toast = await screen.findByRole('status')
     await userEvent.click(within(toast).getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('keeps an existing toast and stacks the next moment on top', async () => {
+    localStorage.setItem('nba:alerts', '1')
+    // Each poll fans out over three days, so gate by round: round 1 tips the game
+    // off, round 2 is held until the tipoff toast is provably on screen. Nothing in
+    // the mocked schedule is imminent, so the cycle starts cold and the first live
+    // game flips it warm — that re-runs the poll effect immediately, the only gap
+    // narrower than the 9s toast TTL.
+    let release
+    const gate = new Promise((r) => { release = r })
+    let calls = 0
+    fetch.mockImplementation(async () => {
+      calls += 1
+      if (calls <= 3) return scoreboard([liveEvent()])
+      await gate
+      return scoreboard([finalEvent()])
+    })
+
+    mount()
+    const stack = await screen.findByRole('status')
+    expect(stack).toHaveTextContent('Tipoff')
+    release()
+    // The final lands on top of the tipoff still showing — the only time the
+    // already-seen key set is built from a non-empty stack.
+    await waitFor(() => expect(stack).toHaveTextContent('Final'))
+    expect(stack).toHaveTextContent('Tipoff')
+  })
+
+  it('drops a poll that lands after the effect was torn down', async () => {
+    // Hold the poll open, unmount (which aborts), then let the fetch settle. The
+    // guard must swallow the result rather than set state on a dead tree.
+    let settleFetch
+    fetch.mockReturnValue(new Promise((res) => { settleFetch = () => res(scoreboard([liveEvent()])) }))
+    const { unmount } = mount()
+    unmount()
+    await act(async () => {
+      settleFetch()
+    })
+    expect(screen.queryByText(/live now/)).not.toBeInTheDocument()
   })
 
   it('retires a toast on its own after a few seconds', async () => {

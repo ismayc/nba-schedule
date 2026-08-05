@@ -64,10 +64,13 @@ function Side({ abbr, label, seed, wins, isWinner, decided, onPick }) {
   const { isFollowed } = useFollow()
 
   if (!team) {
+    // Hoisted out of the JSX so the ignore hint lands on a real statement — inside a
+    // `{/* … */}` expression container it never reaches the compiled output.
+    /* v8 ignore next -- buildBracket sets a feeder on every slot (R1 "N seed", CSF/CF "Winner…", Final "… champion"), so an empty side always has a label; the 'TBD' fallback guards a shape buildBracket never emits */
+    const feeder = label || 'TBD'
     return (
       <div className="bx-side bx-empty">
-        {/* v8 ignore next -- buildBracket sets a feeder on every slot (R1 "N seed", CSF/CF "Winner…", Final "… champion"), so an empty side always has a label; the 'TBD' fallback guards a shape buildBracket never emits */}
-        <span className="bx-feeder">{label || 'TBD'}</span>
+        <span className="bx-feeder">{feeder}</span>
       </div>
     )
   }
