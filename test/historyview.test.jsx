@@ -188,7 +188,9 @@ describe('HistoryView — stats for one season', () => {
     const onPick = vi.fn()
     const { container } = await stats(2023, { onPick })
     await userEvent.click(container.querySelector('.margin-team'))
-    expect(onPick).toHaveBeenCalledWith('BOS')
+    // The season travels with the team: the panel it opens has to describe THAT
+    // season, not whichever one the live board happens to be on.
+    expect(onPick).toHaveBeenCalledWith('BOS', 2023)
   })
 })
 
@@ -217,7 +219,8 @@ describe('HistoryView — play-in qualifiers', () => {
     const { container } = mount({ onPick })
     await userEvent.click(mode('Play-in qualifiers'))
     await userEvent.click(container.querySelector('.hy-table .hy-team'))
-    expect(onPick).toHaveBeenCalledWith(HISTORY_BY_YEAR[2026].viaPlayIn.E[0])
+    // Each row names its own season, so the panel opens on that year.
+    expect(onPick).toHaveBeenCalledWith(HISTORY_BY_YEAR[2026].viaPlayIn.E[0], 2026)
   })
 })
 
@@ -266,7 +269,7 @@ describe('HistoryView — champions', () => {
     expect(onSeason).toHaveBeenCalledWith(2026)
 
     await userEvent.click(container.querySelector('.hy-table .hy-team'))
-    expect(onPick).toHaveBeenCalledWith('NY')
+    expect(onPick).toHaveBeenCalledWith('NY', 2026)
   })
 })
 

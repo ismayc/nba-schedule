@@ -99,3 +99,44 @@ export function finalsSummary(season) {
     wins: winner ? [final.wins[winner], final.wins[loser]] : null,
   }
 }
+
+/**
+ * One archived team's row in the shape the team panel expects.
+ *
+ * The panel is built for the live season, where every figure comes from the game
+ * list. A finished season commits its standings as numbers instead (the ~1,230
+ * regular-season games are summarised, not stored), so the same fields are
+ * rebuilt from those: per-game scoring from points for/against, the home and
+ * road splits from their compact [w, l] pairs.
+ *
+ * `results` is deliberately empty — the archive has no per-game regular-season
+ * record, so there is no honest "last 10" to draw, and the panel omits that
+ * section rather than inventing one from the play-off games it does hold.
+ * `remaining` is 0 for the same reason it is true: the season is over.
+ */
+export function seasonTeamRow(season, abbr) {
+  if (!season || !abbr) return null
+  const row = Object.values(season.standings).flat().find((r) => r.abbr === abbr)
+  if (!row) return null
+  const gp = row.w + row.l
+  const pair = ([w, l]) => ({ w, l })
+  return {
+    ...row,
+    gp,
+    ppg: gp ? row.pf / gp : 0,
+    oppPpg: gp ? row.pa / gp : 0,
+    netPpg: row.netPpg,
+    home: pair(row.home),
+    road: pair(row.road),
+    remaining: 0,
+    results: [],
+    // A finished season has no race left to run, so neither badge applies.
+    clinched: false,
+    eliminated: false,
+  }
+}
+
+/** That season's players, ordered for the panel's leading-scorers list. */
+export function seasonPlayers(season) {
+  return season?.players ? Object.values(season.players) : []
+}

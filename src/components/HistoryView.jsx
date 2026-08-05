@@ -45,9 +45,9 @@ const record = ([w, l]) => `${w}-${l}`
 
 // A team, as a clickable chip — the same affordance as every other team reference in
 // the app, so a name in a historical table still opens that team's panel.
-function TeamChip({ abbr, size = 20, onPick }) {
+function TeamChip({ abbr, size = 20, onPick, year }) {
   return (
-    <button className="hy-team" onClick={() => onPick?.(abbr)}>
+    <button className="hy-team" onClick={() => onPick?.(abbr, year)}>
       <TeamLogo abbr={abbr} size={size} />
       <span>{teamName(abbr)}</span>
     </button>
@@ -59,7 +59,7 @@ function TeamChip({ abbr, size = 20, onPick }) {
 // The committed rows are compact (`home: [w, l]`, last-10 as a W-L pair), so this is a
 // leaner table than the live Regular Season view rather than a reuse of it — a finished
 // season has no clinch/elimination story left to tell.
-function StandingsTable({ conf, rows, onPick }) {
+function StandingsTable({ conf, rows, onPick, year }) {
   return (
     <div className="card">
       <h3 className="card-title">{CONFERENCES[conf]}</h3>
@@ -88,7 +88,7 @@ function StandingsTable({ conf, rows, onPick }) {
                   <span className="rank">{r.seed}</span>
                 </td>
                 <td className="col-team">
-                  <TeamChip abbr={r.abbr} size={26} onPick={onPick} />
+                  <TeamChip abbr={r.abbr} size={26} onPick={onPick} year={year} />
                 </td>
                 <td className="num">{r.w}</td>
                 <td className="num">{r.l}</td>
@@ -115,6 +115,9 @@ function StandingsTable({ conf, rows, onPick }) {
 // champion banner), the final standings, and the leaders.
 function Season({ season, tz, onPick, onOpen }) {
   const playIn = useMemo(() => seasonPlayIn(season), [season])
+  // The bracket reports a team by abbreviation alone; stamp this season onto it
+  // so the panel it opens describes the right year.
+  const pick = (abbr) => onPick?.(abbr, season.year)
 
   return (
     <>
@@ -141,13 +144,13 @@ function Season({ season, tz, onPick, onOpen }) {
         games={season.games}
         standings={season.standings}
         tz={tz}
-        onPick={onPick}
+        onPick={pick}
         onOpen={onOpen}
       />
 
       <div className="grid-2">
         {['E', 'W'].map((c) => (
-          <StandingsTable key={c} conf={c} rows={season.standings[c]} onPick={onPick} />
+          <StandingsTable key={c} conf={c} rows={season.standings[c]} onPick={onPick} year={season.year} />
         ))}
       </div>
     </>
@@ -166,6 +169,9 @@ function Season({ season, tz, onPick, onOpen }) {
 // notable games instead.
 function SeasonStats({ season, tz, onPickTeam, onPickPlayer, onOpen }) {
   const t = season.totals
+  // Leaderboards and the margin chart report a team by abbreviation alone; stamp
+  // this season onto it so the panel they open describes the right year.
+  const pickTeam = (abbr) => onPickTeam?.(abbr, season.year)
   const [open, setOpen] = useState(null)
   const toggle = (k) => setOpen((v) => (v === k ? null : k))
 
@@ -221,7 +227,7 @@ function SeasonStats({ season, tz, onPickTeam, onPickPlayer, onOpen }) {
 
       <Leaders
         getRows={getRows}
-        onPickTeam={onPickTeam}
+        onPickTeam={pickTeam}
         onPickPlayer={onPickPlayer}
         showTeam={false}
       />
@@ -232,7 +238,7 @@ function SeasonStats({ season, tz, onPickTeam, onPickPlayer, onOpen }) {
         season&apos;s.
       </p>
 
-      <MarginChart rows={rows} onPickTeam={onPickTeam} />
+      <MarginChart rows={rows} onPickTeam={pickTeam} />
     </>
   )
 }
@@ -271,7 +277,7 @@ function PlayInHistory({ seasons, onPick, onSeason }) {
                 </td>
                 <td className="dim">{r.conf}</td>
                 <td className="col-team">
-                  <TeamChip abbr={r.abbr} size={22} onPick={onPick} />
+                  <TeamChip abbr={r.abbr} size={22} onPick={onPick} year={r.year} />
                 </td>
                 <td className="num">{r.seed}</td>
                 <td className="hide-sm dim">{r.path}</td>
@@ -324,16 +330,16 @@ function Champions({ seasons, onPick, onSeason }) {
                   </button>
                 </td>
                 <td className="col-team">
-                  <TeamChip abbr={finals.winner} size={22} onPick={onPick} />
+                  <TeamChip abbr={finals.winner} size={22} onPick={onPick} year={season.year} />
                 </td>
                 <td className="col-team">
-                  <TeamChip abbr={finals.loser} size={22} onPick={onPick} />
+                  <TeamChip abbr={finals.loser} size={22} onPick={onPick} year={season.year} />
                 </td>
                 <td className="num">
                   {finals.wins[0]}–{finals.wins[1]}
                 </td>
                 <td className="col-team hide-sm">
-                  <TeamChip abbr={best.abbr} size={22} onPick={onPick} />
+                  <TeamChip abbr={best.abbr} size={22} onPick={onPick} year={season.year} />
                   <span className="dim">
                     {' '}
                     {best.w}-{best.l}
