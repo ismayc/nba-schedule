@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './data/schedule.js'
 import { SEASON, SEASON_LABEL, TEAMS } from './data/teams.js'
-import { detectTimezone, timezoneOptions, dayKey, todayKey } from './utils/time.js'
+import { detectTimezone, timezoneOptions, dayKey, todayKey, whenBucket } from './utils/time.js'
 import { readState, writeState } from './utils/urlState.js'
 import { parseQuery, matchesSearch } from './utils/search.js'
 import { applyLive, fetchLive, liveCount } from './services/espn.js'
@@ -9,6 +9,7 @@ import { watchableServices } from './utils/watch.js'
 import { useFollow } from './context/follow.jsx'
 import { useServices } from './context/services.jsx'
 import ScheduleView from './components/ScheduleView.jsx'
+import NextGame from './components/NextGame.jsx'
 import StandingsView from './components/StandingsView.jsx'
 import StatsView from './components/StatsView.jsx'
 import Bracket from './components/Bracket.jsx'
@@ -53,6 +54,14 @@ const PHASE_LABELS = {
   allstar: '⭐ All-Star',
   cup: '🏅 Cup',
 }
+
+// The "When" quick filter. Exclusive — a game is in exactly one of these at a time —
+// so clicking the active chip clears it rather than stacking a second bucket.
+const WHEN_FILTERS = [
+  { id: 'live', label: '🔴 Live' },
+  { id: 'upcoming', label: '⏱ Upcoming' },
+  { id: 'final', label: '✓ Finished' },
+]
 
 export default function App() {
   // Read the shared link once, on mount.
@@ -106,6 +115,7 @@ export default function App() {
   // Which season phases to show (empty = all). Component-local like search, for the same
   // reason — it stays out of the URL/localStorage and adds no persisted readState key.
   const [phases, setPhases] = useState([])
+  const [when, setWhen] = useState('')
   // The filter panel is collapsed by default, but opens on load if a shared link already
   // has a team or "my teams" applied, or the device remembers a watch-only filter — so an
   // active filter is never hidden behind a closed panel. (Search always starts empty.)
@@ -264,10 +274,12 @@ export default function App() {
         return false
       // Empty = all phases; otherwise the game's phase must be one of the chosen chips.
       if (phases.length && !phases.includes(g.seasonType)) return false
+      // Empty = any time; otherwise live/upcoming/finished as the card reads right now.
+      if (when && whenBucket(g) !== when) return false
       if (!matchesSearch(g, parsedSearch)) return false
       return true
     })
-  }, [games, team, onlyFollowed, followed, followedCount, watchOnly, services, serviceCount, phases, parsedSearch])
+  }, [games, team, onlyFollowed, followed, followedCount, watchOnly, services, serviceCount, phases, when, parsedSearch])
 
   // How many filters are actively narrowing the schedule — drives the toggle badge and
   // the auto-open. Mirrors exactly what scheduleGames applies (a followed/service toggle
@@ -279,8 +291,9 @@ export default function App() {
     if (onlyFollowed && followedCount) n++
     if (watchOnly && serviceCount) n++
     if (phases.length) n++
+    if (when) n++
     return n
-  }, [search, team, onlyFollowed, followedCount, watchOnly, serviceCount, phases])
+  }, [search, team, onlyFollowed, followedCount, watchOnly, serviceCount, phases, when])
 
   const clearAllFilters = () => {
     setSearch('')
@@ -288,6 +301,7 @@ export default function App() {
     setOnlyFollowed(false)
     setWatchOnly(false)
     setPhases([])
+    setWhen('')
     try {
       localStorage.setItem('nba:watchOnly', '0')
     } catch {
@@ -534,12 +548,26 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              <div className="phase-chips when-chips">
+                <span className="hint-label">When:</span>
+                {WHEN_FILTERS.map((w) => (
+                  <button
+                    key={w.id}
+                    className={`phase-chip${when === w.id ? ' active' : ''}`}
+                    onClick={() => setWhen((cur) => (cur === w.id ? '' : w.id))}
+                    aria-pressed={when === w.id}
+                  >
+                    {w.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
       )}
 
       <main>
+        {view === 'schedule' && <NextGame games={scheduleGames} tz={tz} />}
         {view === 'schedule' && (
           <ScheduleView
             games={scheduleGames}
