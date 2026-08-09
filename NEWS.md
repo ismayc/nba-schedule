@@ -6,6 +6,11 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-09
 
+- **Live window anchors on the Eastern day.** The scoreboard poll's three-day
+  window was computed in UTC, but ESPN buckets `dates=` by the US-Eastern day —
+  every US evening the window slid to {today, +1, +2} and dropped yesterday's
+  finals from the overlay. The window now converts each offset to its Eastern
+  day.
 - **Leaderboards now cover all 578 qualified players.** The `byathlete` feed
   paginates at 300 and `fetchLeaders` read only page 1, so 278 players were
   missing from the committed pool — including the real FG% leaders (Poeltl
