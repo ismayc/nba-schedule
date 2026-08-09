@@ -49,6 +49,10 @@ describe('countsForStandings', () => {
     expect(countsForStandings(game({ postponed: true }))).toBe(false)
     expect(countsForStandings(game({ score: undefined }))).toBe(false)
   })
+
+  it('treats a live score as provisional — an in-progress game does not count', () => {
+    expect(countsForStandings(game({ live: true }))).toBe(false)
+  })
 })
 
 describe('computeStandings', () => {

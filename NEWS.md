@@ -6,6 +6,17 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-09
 
+- **Live scores no longer count as final.** The live overlay's provisional
+  score was being banked everywhere a result matters: standings absorbed
+  in-progress leads, the bracket could crown a series winner mid-game, the
+  race engine treated a live head-to-head as settled, and the season's last
+  game going live read as "season over" — killing the live polling exactly
+  when it mattered. Every consumer now requires score-and-not-live (the
+  soccer viewers' provisional-score convention). The refresh script's
+  box-score enrichment gets the same guard: only completed scoreboard events
+  contribute line scores and star leaders (the WNBA sibling caught a partial
+  mid-game line attaching to a final score today).
+
 - **Sharper clinch math: banked ties + a late-season scenario engine.** A
   chaser who can only TIE a team's lose-out floor stops counting once their
   season series is finished and won (head-to-head leads the two-team chain);

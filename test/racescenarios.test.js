@@ -67,6 +67,31 @@ describe('scenarioClinched', () => {
     expect(scenarioClinched('BOS', eastRows(g), scheduledGames(g), g, 1)).toBe(true)
   })
 
+  it('does not bank a head-to-head series while its last game is still live', () => {
+    const liveFinale = [
+      game({ id: 'l1', home: 'BOS', away: 'NY' }),
+      game({ id: 'l2', home: 'NY', away: 'BOS', score: [100, 110], live: true, tip: '2026-01-20T00:00:00.000Z' }),
+    ]
+    const rows = eastRows(liveFinale)
+    const ranges = seedRanges(rows, scheduledGames(liveFinale), liveFinale)
+    // BOS leads the live rematch, but a live score is provisional: the series is not
+    // banked, NY can still tie BOS's floor, so the top rank must stay open.
+    expect(ranges.BOS).toEqual({ bestRank: 1, worstRank: 2 })
+  })
+
+  it('treats a live score as provisional — no clinch off a game still in progress', () => {
+    // BOS leads NY in a LIVE head-to-head. Banking that provisional score would put
+    // BOS out of reach; the game must stay open, and open it hands NY the win — NY
+    // draws level and owns the head-to-head, so no clinch.
+    const g = [
+      game({ id: 'v1', home: 'BOS', away: 'PHI' }),
+      game({ id: 'v2', home: 'BOS', away: 'TOR' }),
+      game({ id: 'v3', home: 'NY', away: 'DET' }),
+      game({ id: 'v4', home: 'BOS', away: 'NY', score: [60, 50], live: true, tip: '2026-01-20T00:00:00.000Z' }),
+    ]
+    expect(scenarioClinched('BOS', eastRows(g), scheduledGames(g), g, 1)).toBe(false)
+  })
+
   it('charges a two-team floor tie when the finished series was split', () => {
     const g = [
       game({ id: 'c1', home: 'BOS', away: 'CLE' }),

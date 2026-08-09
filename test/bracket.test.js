@@ -81,6 +81,14 @@ describe('an in-progress series', () => {
     expect(s.wins.NY).toBe(2)
     expect(s.games).toHaveLength(4)
   })
+
+  it('does not count a live game’s provisional score as a series win', () => {
+    const withLive = [...partial, { ...partial[0], id: 'y', game: 4, score: [100, 90], live: true }]
+    const [s] = buildSeries(withLive)
+    expect(s.wins).toEqual({ NY: 2, ATL: 1 })
+    expect(s.winner).toBeNull()
+    expect(s.live).toBe(true)
+  })
 })
 
 // The finished 2025-26 postseason, as committed: New York won the East, San Antonio the

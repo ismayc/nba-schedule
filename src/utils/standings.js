@@ -46,9 +46,10 @@ export const DIVISION_BY_ABBR = {
 
 // A game only counts toward the standings if it is a completed regular-season game.
 // The NBA Cup championship and postponed shells are explicitly excluded — this is what
-// makes derived records match the official ones exactly.
+// makes derived records match the official ones exactly. A live game's score is
+// provisional (the overlay sets `live`), so it does not count until final.
 export const countsForStandings = (g) =>
-  g.seasonType === 'regular' && !!g.score && !g.postponed && !g.canceled
+  g.seasonType === 'regular' && !!g.score && !g.live && !g.postponed && !g.canceled
 
 const blankRecord = (abbr) => ({
   abbr,
@@ -398,7 +399,7 @@ function seriesLedger(games) {
   for (const g of games) {
     if (g.seasonType !== 'regular' || g.postponed || g.canceled) continue
     const e = at(g.home, g.away)
-    if (!g.score) e.remaining++
+    if (!g.score || g.live) e.remaining++
     else {
       const winner = g.score[0] > g.score[1] ? g.home : g.away
       e.wins[winner] = (e.wins[winner] ?? 0) + 1
