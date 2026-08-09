@@ -6,6 +6,15 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-09
 
+- **Leaderboards now cover all 578 qualified players.** The `byathlete` feed
+  paginates at 300 and `fetchLeaders` read only page 1, so 278 players were
+  missing from the committed pool — including the real FG% leaders (Poeltl
+  70.0 tops the 2025-26 archive board now; Lively 74.7 and Allen 70.6 head
+  the earlier seasons, matching the record). The fetch follows
+  `pagination.pages`, resolves each stat by category NAME per athlete (the
+  positional category read was one missing category away from misreading
+  every column), and `leaders.js` plus all six archived seasons are
+  regenerated.
 - **Live scores no longer count as final.** The live overlay's provisional
   score was being banked everywhere a result matters: standings absorbed
   in-progress leads, the bracket could crown a series winner mid-game, the

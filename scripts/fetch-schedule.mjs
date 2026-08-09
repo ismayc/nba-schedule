@@ -400,39 +400,50 @@ const round = (v, p = 1) =>
   typeof v === 'number' && Number.isFinite(v) ? Number(v.toFixed(p)) : null
 
 export async function fetchLeaders(season = SEASON) {
-  const d = await getJson(
-    `${WEB}/statistics/byathlete?region=us&lang=en&season=${season}&seasontype=2&limit=300`
-  )
+  // The qualified list spans multiple pages (578 athletes in 2026) — a single
+  // limit=300 call silently read page 1 of 2, dropping 278 players including the
+  // real FG% leader. Follow pagination.pages.
+  const byId = new Map()
+  for (let page = 1, pages = 1; page <= pages; page++) {
+    const d = await getJson(
+      `${WEB}/statistics/byathlete?region=us&lang=en&season=${season}&seasontype=2&limit=300&page=${page}`
+    )
+    pages = d.pagination?.pages ?? 1
 
-  // ESPN stat name → [categoryIndex, valueIndex], from the top-level column definitions.
-  const index = {}
-  ;(d.categories || []).forEach((cat, ci) => {
-    ;(cat.names || []).forEach((name, vi) => {
-      if (!(name in index)) index[name] = [ci, vi]
-    })
-  })
-  const read = (athleteCats, espnName) => {
-    const pos = index[espnName]
-    return pos ? athleteCats?.[pos[0]]?.values?.[pos[1]] : undefined
-  }
+    // ESPN stat name → [category NAME, valueIndex], from the top-level column
+    // definitions. The category is resolved by name per athlete rather than by
+    // position, so an athlete missing a category can't shift the read.
+    const index = {}
+    for (const cat of d.categories || []) {
+      ;(cat.names || []).forEach((name, vi) => {
+        if (!(name in index)) index[name] = [cat.name, vi]
+      })
+    }
+    const read = (athleteCats, espnName) => {
+      const pos = index[espnName]
+      return pos ? athleteCats?.find((c) => c.name === pos[0])?.values?.[pos[1]] : undefined
+    }
 
-  return (d.athletes || [])
-    .map(({ athlete: a, categories }) => {
+    for (const { athlete: a, categories } of d.athletes || []) {
+      if (byId.has(a.id)) continue
       const stats = {}
       for (const [field, espnName] of Object.entries(LEADER_FIELDS)) {
         // Percentages 1dp; per-game averages 1dp; counts/totals 0dp.
         const precision = field.endsWith('Pct') || field.startsWith('avg') ? 1 : 0
         stats[field] = round(read(categories, espnName), precision)
       }
-      return {
+      byId.set(a.id, {
         id: a.id,
         name: a.displayName,
         short: a.shortName,
         team: a.teamShortName,
         pos: a.position?.abbreviation || null,
         ...stats,
-      }
-    })
+      })
+    }
+  }
+
+  return [...byId.values()]
     .filter((p) => p.team && p.gamesPlayed)
     .sort((a, b) => (b.avgPoints ?? 0) - (a.avgPoints ?? 0))
 }
