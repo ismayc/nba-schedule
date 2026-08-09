@@ -681,6 +681,11 @@ select:hover,
   background: rgba(255, 107, 107, 0.16);
   color: var(--loss);
 }
+/* Locked into the play-in: neither a plain ✓ nor a ✕ — amber middle ground. */
+.badge-mid {
+  background: rgba(244, 197, 66, 0.16);
+  color: var(--gold);
+}
 
 /* Standings legend — spells out the clinch badges for readers who can't hover
    the tooltips (i.e. everyone on a phone). */
@@ -699,6 +704,17 @@ select:hover,
 }
 .legend-star {
   color: var(--gold);
+}
+
+/* Possible-finish range: quiet until it collapses to a locked seed. */
+.finish {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.finish-locked {
+  color: var(--gold);
+  font-weight: 700;
 }
 
 .streak {

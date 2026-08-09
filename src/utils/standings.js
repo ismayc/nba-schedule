@@ -12,6 +12,8 @@ export const CONFERENCES = { E: 'Eastern Conference', W: 'Western Conference' }
 // defining structural difference from the WNBA sibling this app was templated from.
 export const PLAYOFF_SPOTS = 8 // per conference
 export const PLAYIN_SEEDS = [7, 8, 9, 10] // per conference; 7–8 host, 9–10 visit
+export const PLAYOFF_SEEDS = 6 // seeds 1–6 skip the play-in and go straight to the bracket
+const PLAYIN_CUT_SEED = PLAYIN_SEEDS[PLAYIN_SEEDS.length - 1] // 10 — last seed still alive
 
 // Conference and division are not in ESPN's team feed, so they live here — the
 // authoritative 30-team split (matches the standings endpoint's grouping).
@@ -126,69 +128,180 @@ export function headToHead(games, a, b) {
 
 const pctOf = (rec) => (rec.w + rec.l ? rec.w / (rec.w + rec.l) : 0)
 
-// Division leaders (the best record in each division) — a set of abbreviations. Computed
-// with the reduced comparator below to avoid the circularity of using "is a division
-// leader" while deciding who the division leaders are.
+// W-L against a set of opponent abbreviations, read from the per-game `results` a row
+// already carries. Follows the file's pct convention: no games against the set → 0
+// (in a real 82-game season every team meets every conference opponent, so the empty
+// case only appears in synthetic mid-season fixtures).
+const recordVs = (row, opponents) => {
+  const rec = { w: 0, l: 0 }
+  for (const r of row.results) if (opponents.has(r.opp)) rec[r.won ? 'w' : 'l']++
+  return rec
+}
+
+const otherConf = (row) => (CONFERENCE_BY_ABBR[row.abbr] === 'E' ? 'W' : 'E')
+
+// "Playoff-eligible" teams per conference, for the tiebreaker steps that compare
+// records against them. INTERPRETATION: the official pre-play-in text reads "teams
+// eligible for the playoffs … including teams that finished tied for a playoff
+// position", and the league never restated it after the play-in arrived (2020). We
+// read it as the top 10 of each conference (the play-in field) by winning percentage
+// PLUS any team tied (equal pct) with the 10th. Eligibility is computed from raw pct
+// ranking ONLY — no tiebreakers — because using tiebreakers to decide eligibility
+// would make the tiebreakers that consume it circular.
+export function playoffEligible(table) {
+  const byConf = { E: [], W: [] }
+  for (const row of Object.values(table)) byConf[CONFERENCE_BY_ABBR[row.abbr]]?.push(row)
+  const out = {}
+  for (const conf of Object.keys(byConf)) {
+    const rows = byConf[conf].sort((a, b) => b.pct - a.pct)
+    const cutPct = rows[PLAYIN_CUT_SEED - 1].pct
+    out[conf] = new Set(
+      rows.filter((r, i) => i < PLAYIN_CUT_SEED || r.pct === cutPct).map((r) => r.abbr)
+    )
+  }
+  return out
+}
+
+// The two chain flavours. The official criteria for a DIVISION-TITLE tie are the same
+// lists minus the division-leader step — that step would be circular while deciding
+// who the division leader is.
+const SEEDING_CHAIN = { divLeaderStep: true }
+const DIVISION_TITLE_CHAIN = { divLeaderStep: false }
+
+// Division leaders (the best record in each division) — a set of abbreviations.
+// Official rule: a tie for a division title is broken BEFORE any other tie, in
+// isolation, with the reduced chain; the outcome decides ONLY who the division winner
+// is and is never reused for seeding — the conference tie groups below re-run their
+// own chains from scratch (where the winner merely carries division-leader status).
 export function divisionLeaders(table, games) {
   const byDiv = {}
   for (const row of Object.values(table)) {
     ;(byDiv[DIVISION_BY_ABBR[row.abbr]] ??= []).push(row)
   }
+  // `leaders` stays empty during title resolution — the title chain never reads it.
+  const ctx = { games, leaders: new Set(), eligible: playoffEligible(table) }
   const leaders = new Set()
   for (const rows of Object.values(byDiv)) {
-    rows.sort((a, b) => rankReduced(a, b, games))
-    /* v8 ignore next -- defensive: byDiv groups only exist because a row was pushed into them, so rows[0] is always present */
-    if (rows[0]) leaders.add(rows[0].abbr)
+    const best = Math.max(...rows.map((r) => r.pct))
+    const tied = rows.filter((r) => r.pct === best)
+    leaders.add(orderTied(tied, ctx, DIVISION_TITLE_CHAIN)[0].abbr)
   }
   return leaders
 }
 
-// The tiebreaker chain WITHOUT the division-leader step, used only to pick division
-// leaders (which that step would otherwise depend on).
-function rankReduced(a, b, games) {
-  if (b.pct !== a.pct) return b.pct - a.pct
-  const h2h = headToHead(games, a.abbr, b.abbr)
-  if (h2h && h2h.aw !== h2h.bw) return h2h.bw - h2h.aw
-  if (pctOf(b.conf) !== pctOf(a.conf)) return pctOf(b.conf) - pctOf(a.conf)
-  if (b.diff !== a.diff) return b.diff - a.diff
-  return a.abbr < b.abbr ? -1 : 1
-}
-
-// The NBA two-team seeding tiebreaker, in official order:
-//   1. winning percentage
-//   2. head-to-head
-//   3. division leader beats a non-leader
-//   4. division record (only when both are in the same division)
-//   5. conference record
-//   6. record vs playoff teams (own then other conference) — see note
-//   7. point differential
-//
-// Steps 6 are circular to compute (they depend on who makes the playoffs, which depends
-// on seeding) and are steps the league itself rarely reaches; we fall through them to
-// point differential — the deterministic tail — rather than model a fixed-point. This
-// is documented, not silently dropped (cf. the NFL sibling's common-games note). A final
-// alphabetical tiebreak guarantees seeding is never order-dependent.
-export function compareTeams(a, b, games, table, divLeaders) {
-  const leaders = divLeaders ?? divisionLeaders(table ?? computeStandings(games), games)
-
-  if (b.pct !== a.pct) return b.pct - a.pct
-
-  const h2h = headToHead(games, a.abbr, b.abbr)
+// The official TWO-team tiebreaker chain (verified 2026-08-08 against the NBA's
+// published tiebreaker procedures). Negative → a ahead, positive → b ahead. Winning
+// percentage itself is handled by the callers: it defines the tie groups
+// (compareTeams checks it first). Steps are numbered by their official position.
+function breakPair(a, b, ctx, chain) {
+  // Two-team step 1: head-to-head winning percentage between the two — decisive only
+  // when one of them won the season series.
+  const h2h = headToHead(ctx.games, a.abbr, b.abbr)
   if (h2h && h2h.aw !== h2h.bw) return h2h.bw - h2h.aw
 
-  const al = leaders.has(a.abbr)
-  const bl = leaders.has(b.abbr)
-  if (al !== bl) return al ? -1 : 1
+  // Two-team step 2: a division leader wins the tie over a non-leader — this applies
+  // even when the two are in DIFFERENT divisions. Skipped for division-title ties.
+  if (chain.divLeaderStep) {
+    const al = ctx.leaders.has(a.abbr)
+    const bl = ctx.leaders.has(b.abbr)
+    if (al !== bl) return al ? -1 : 1
+  }
 
+  // Two-team step 3: division won-lost percentage — the official gate: this step
+  // exists only when both teams are in the SAME division.
   if (DIVISION_BY_ABBR[a.abbr] === DIVISION_BY_ABBR[b.abbr] && pctOf(b.div) !== pctOf(a.div)) {
     return pctOf(b.div) - pctOf(a.div)
   }
 
+  // Two-team step 4: conference won-lost percentage.
   if (pctOf(b.conf) !== pctOf(a.conf)) return pctOf(b.conf) - pctOf(a.conf)
 
+  // Two-team step 5: W-L% against playoff-eligible teams in the team's OWN conference.
+  const aOwn = pctOf(recordVs(a, ctx.eligible[CONFERENCE_BY_ABBR[a.abbr]]))
+  const bOwn = pctOf(recordVs(b, ctx.eligible[CONFERENCE_BY_ABBR[b.abbr]]))
+  if (aOwn !== bOwn) return bOwn - aOwn
+
+  // Two-team step 6: W-L% against playoff-eligible teams in the OTHER conference.
+  // This step exists only in the two-team chain — the multi-team chain officially
+  // omits it.
+  const aOther = pctOf(recordVs(a, ctx.eligible[otherConf(a)]))
+  const bOther = pctOf(recordVs(b, ctx.eligible[otherConf(b)]))
+  if (aOther !== bOther) return bOther - aOther
+
+  // Two-team step 7: net points, all games.
   if (b.diff !== a.diff) return b.diff - a.diff
 
+  // Official final fallback is a RANDOM DRAWING; we substitute deterministic
+  // alphabetical order so seeding is reproducible — clearly a stand-in, not official.
   return a.abbr < b.abbr ? -1 : 1
+}
+
+// The official THREE-OR-MORE-team chain — a DIFFERENT list from the two-team chain,
+// not a generalisation of it. Each entry yields a sortable key (higher = better) for
+// one criterion; keys make multi-way separation and the restart rule direct.
+function multiChainSteps(group, ctx, chain) {
+  const steps = []
+  // Multi step 1: division leader over non-leader (skipped for division-title ties).
+  if (chain.divLeaderStep) steps.push((t) => (ctx.leaders.has(t.abbr) ? 1 : 0))
+  // Multi step 2: winning percentage in games AMONG the tied teams.
+  const tied = new Set(group.map((t) => t.abbr))
+  steps.push((t) => pctOf(recordVs(t, tied)))
+  // Multi step 3: division won-lost percentage — only if ALL tied teams share a
+  // division (the official gate).
+  if (group.every((t) => DIVISION_BY_ABBR[t.abbr] === DIVISION_BY_ABBR[group[0].abbr])) {
+    steps.push((t) => pctOf(t.div))
+  }
+  // Multi step 4: conference won-lost percentage.
+  steps.push((t) => pctOf(t.conf))
+  // Multi step 5: W-L% vs playoff-eligible teams in the team's own conference. There
+  // is NO other-conference step in the multi-team chain — that is the official list,
+  // not an omission here.
+  steps.push((t) => pctOf(recordVs(t, ctx.eligible[CONFERENCE_BY_ABBR[t.abbr]])))
+  // Multi step 6: net points, all games.
+  steps.push((t) => t.diff)
+  return steps
+}
+
+// Order one exact-pct tie group by the official chain for its SIZE, with the official
+// RESTART rule: the first criterion that creates differentiation splits the group,
+// separated teams take their seeds, and any block still tied re-enters from step 1 of
+// the chain appropriate to the block's NEW size — a 3-way tie collapsing to 2
+// continues under the TWO-team chain from ITS step 1, not where the 3-way chain left
+// off. Recursion terminates: a differentiating criterion always yields strictly
+// smaller blocks, and an undifferentiated group falls to the deterministic stand-in.
+function orderTied(group, ctx, chain) {
+  if (group.length === 1) return group
+  if (group.length === 2) {
+    return breakPair(group[0], group[1], ctx, chain) <= 0 ? group : [group[1], group[0]]
+  }
+  for (const key of multiChainSteps(group, ctx, chain)) {
+    const val = new Map(group.map((t) => [t.abbr, key(t)]))
+    const distinct = [...new Set(val.values())]
+    if (distinct.length === 1) continue // no differentiation — try the next criterion
+    return distinct
+      .sort((x, y) => y - x)
+      .flatMap((v) => orderTied(group.filter((t) => val.get(t.abbr) === v), ctx, chain))
+  }
+  // Every multi-team criterion exhausted with the whole group still tied. Official:
+  // random drawing — deterministic alphabetical stand-in.
+  return [...group].sort((x, y) => (x.abbr < y.abbr ? -1 : 1))
+}
+
+// Backward-compatible pairwise comparator over the FULL official two-team chain.
+// `table`, `divLeaders`, and `eligible` are derived on demand when not supplied, so
+// existing callers that only hold `games` keep working. NOTE: correct only for
+// comparing two teams — ordering a conference must go through the tie-GROUP resolver
+// (conferenceStandings), because the multi-team chain is not pairwise-decomposable.
+export function compareTeams(a, b, games, table, divLeaders, eligible) {
+  const t = table ?? computeStandings(games)
+  const ctx = {
+    games,
+    leaders: divLeaders ?? divisionLeaders(t, games),
+    eligible: eligible ?? playoffEligible(t),
+  }
+  // Winning percentage is the standings order itself; exact ties fall to the chain.
+  if (b.pct !== a.pct) return b.pct - a.pct
+  return breakPair(a, b, ctx, SEEDING_CHAIN)
 }
 
 // Games behind the leader: the standard (leadΔwins + leadΔlosses) / 2.
@@ -201,14 +314,27 @@ export const gamesBehind = (leader, row) =>
 export function conferenceStandings(games) {
   const table = computeStandings(games)
   const divLeaders = divisionLeaders(table, games)
+  const ctx = { games, leaders: divLeaders, eligible: playoffEligible(table) }
 
   const byConf = { E: [], W: [] }
   for (const row of Object.values(table)) byConf[CONFERENCE_BY_ABBR[row.abbr]]?.push(row)
 
   for (const conf of Object.keys(byConf)) {
-    byConf[conf].sort((a, b) => compareTeams(a, b, games, table, divLeaders))
-    const leader = byConf[conf][0]
-    byConf[conf] = byConf[conf].map((row, i) => ({
+    // Rank by winning percentage, then resolve each EXACT-pct tie GROUP with the
+    // official chain for its size. Deliberately NOT a pairwise sort: the multi-team
+    // chain (record among the tied, restarts) is not decomposable into pairwise
+    // comparisons — three teams can legitimately order differently under the two
+    // chains, so a comparator sort would seed them wrong.
+    const byPct = [...byConf[conf]].sort((a, b) => b.pct - a.pct)
+    const rows = []
+    for (let i = 0; i < byPct.length; ) {
+      let j = i + 1
+      while (j < byPct.length && byPct[j].pct === byPct[i].pct) j++
+      rows.push(...orderTied(byPct.slice(i, j), ctx, SEEDING_CHAIN))
+      i = j
+    }
+    const leader = rows[0]
+    byConf[conf] = rows.map((row, i) => ({
       ...row,
       seed: i + 1,
       confRank: i + 1,
@@ -250,7 +376,32 @@ export function magicNumber(row, chaser, totals) {
 // the league). The elimination boundary is the PLAY-IN field — the top 10, not the top 8
 // — because seeds 9 and 10 also play in and are not "out". Returns a flat list of every
 // team with its conference seed and race status.
-const PLAYIN_CUT_SEED = PLAYIN_SEEDS[PLAYIN_SEEDS.length - 1] // 10
+
+// The window of final CONFERENCE seeds still arithmetically open to each team, from
+// win bounds alone: a rival can still finish ahead of you only if its ceiling (win
+// out) reaches your floor (lose out). Ties are charged AGAINST the team for the worst
+// bound and FOR it for the best bound, so the range is sound regardless of how
+// tiebreakers fall — it may be conservative, never wrong. bestRank === worstRank
+// therefore means the seed is truly locked.
+export function seedRanges(rows, totals) {
+  const bounds = rows.map((row) => ({
+    abbr: row.abbr,
+    floor: row.w,
+    ceiling: row.w + ((totals[row.abbr] ?? 0) - row.gp),
+  }))
+  const out = {}
+  for (const b of bounds) {
+    let ahead = 0 // rivals guaranteed to finish strictly ahead
+    let couldPass = 0 // rivals that could still finish ahead of (or tied with) us
+    for (const r of bounds) {
+      if (r.abbr === b.abbr) continue
+      if (r.floor > b.ceiling) ahead++
+      if (r.ceiling >= b.floor) couldPass++
+    }
+    out[b.abbr] = { bestRank: 1 + ahead, worstRank: 1 + couldPass }
+  }
+  return out
+}
 
 export function playoffRace(games) {
   const byConf = conferenceStandings(games)
@@ -261,21 +412,30 @@ export function playoffRace(games) {
     const rows = byConf[conf]
     const cut = rows[PLAYIN_CUT_SEED - 1] // 10th seed — last team in the play-in field
     const firstOut = rows[PLAYIN_CUT_SEED] // 11th seed — first team out
+    const ranges = seedRanges(rows, totals)
 
     for (const row of rows) {
       const remaining = (totals[row.abbr] ?? 0) - row.gp
-      // Clinched a play-in berth when even losing out still leaves the 11th-place team short.
-      /* v8 ignore next -- `: false` is unreachable: a 15-team conference always yields an 11th seed, so `firstOut` is always defined */
-      const clinched = firstOut ? row.w > firstOut.w + ((totals[firstOut.abbr] ?? 0) - firstOut.gp) : false
-      // Eliminated when winning out still cannot reach the current 10th seed.
-      /* v8 ignore next -- `: false` is unreachable: a 15-team conference always yields a 10th seed, so `cut` is always defined */
-      const eliminated = cut ? row.w + remaining < cut.w : false
+      const { bestRank, worstRank } = ranges[row.abbr]
+      // Range-derived race states — strictly stronger than comparing against the
+      // current 11th/10th seed alone, and they compose into the play-in tiers:
+      // clinched = no outcome leaves the team below the play-in cut; top-6 = skips
+      // the play-in outright; lockedPlayin = the play-in is now the only path (safe
+      // from 11th, but 7th is the best still reachable).
+      const clinched = worstRank <= PLAYIN_CUT_SEED
+      const eliminated = bestRank > PLAYIN_CUT_SEED
+      const clinchedTop6 = worstRank <= PLAYOFF_SEEDS
+      const lockedPlayin = clinched && bestRank > PLAYOFF_SEEDS
       out.push({
         ...row,
         conf,
         remaining,
+        bestRank,
+        worstRank,
         clinched,
         eliminated,
+        clinchedTop6,
+        lockedPlayin,
         /* v8 ignore next -- `: 0` is unreachable: a 15-team conference always yields a 10th seed, so `cut` is always defined */
         gbCut: cut ? gamesBehind(cut, row) : 0,
         magic: row.seed <= PLAYIN_CUT_SEED && firstOut && !clinched ? magicNumber(row, firstOut, totals) : null,

@@ -32,6 +32,53 @@ function LastTen({ results }) {
   )
 }
 
+// The race tiers are mutually exclusive, strongest claim first: a top-6 lock beats the
+// bare play-in-berth ✓, and a team locked INTO the play-in gets its own amber chip —
+// "safe from 11th, but 7th is now the ceiling" is neither a plain ✓ nor a ✕.
+function RaceBadge({ row }) {
+  if (row.clinchedTop6) {
+    return (
+      <span className="badge badge-in" title="Clinched a top-6 seed — straight to the bracket, no play-in">
+        ✓ top 6
+      </span>
+    )
+  }
+  if (row.lockedPlayin) {
+    return (
+      <span className="badge badge-mid" title="Locked into the play-in — safe from elimination, but a top-6 seed is out of reach">
+        play-in
+      </span>
+    )
+  }
+  if (row.clinched) {
+    return (
+      <span className="badge badge-in" title="Clinched at least a play-in berth">
+        ✓
+      </span>
+    )
+  }
+  if (row.eliminated) {
+    return (
+      <span className="badge badge-out" title="Eliminated — can no longer reach the play-in">
+        ✕
+      </span>
+    )
+  }
+  return null
+}
+
+// "3–7" while outcomes remain open; collapses to the bare seed once locked.
+function FinishRange({ row }) {
+  if (row.bestRank === row.worstRank) {
+    return <span className="finish finish-locked">{row.bestRank}</span>
+  }
+  return (
+    <span className="finish">
+      {row.bestRank}–{row.worstRank}
+    </span>
+  )
+}
+
 function Row({ row, rank, onPick }) {
   const { isFollowed, toggle } = useFollow()
   const followed = isFollowed(row.abbr)
@@ -56,16 +103,7 @@ function Row({ row, rank, onPick }) {
             <span className="team-loc">{row.team.location}</span>{' '}
             <span className="team-nick">{row.team.name}</span>
           </span>
-          {row.clinched && (
-            <span className="badge badge-in" title="Clinched at least a play-in berth">
-              ✓
-            </span>
-          )}
-          {row.eliminated && (
-            <span className="badge badge-out" title="Eliminated — can no longer reach the play-in">
-              ✕
-            </span>
-          )}
+          <RaceBadge row={row} />
         </button>
       </td>
       <td className="num">{row.w}</td>
@@ -81,6 +119,9 @@ function Row({ row, rank, onPick }) {
         <StreakPill streak={row.streak} />
       </td>
       <td className={`num hide-sm ${row.netPpg > 0 ? 'pos' : 'neg'}`}>{signed(row.netPpg)}</td>
+      <td className="num">
+        <FinishRange row={row} />
+      </td>
     </tr>
   )
 }
@@ -111,6 +152,12 @@ function Table({ caption, rows, rankKey, onPick }) {
               <th className="num hide-sm" title="Point differential per game">
                 Net
               </th>
+              <th
+                className="num"
+                title="Final seeds still arithmetically possible (win-loss bounds; a secured tiebreaker can only narrow this sooner)"
+              >
+                Finish
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -121,14 +168,14 @@ function Table({ caption, rows, rankKey, onPick }) {
                   <Row row={row} rank={row[rankKey]} onPick={onPick} />
                   {seed === 6 && (
                     <tr className="cutline">
-                      <td colSpan={11}>
+                      <td colSpan={12}>
                         <span>Seeds 1–6 clinch a series · play-in below</span>
                       </td>
                     </tr>
                   )}
                   {seed === PLAYIN_CUT && (
                     <tr className="cutline">
-                      <td colSpan={11}>
+                      <td colSpan={12}>
                         <span>Play-in cut — seeds 7–10 play for the last two spots</span>
                       </td>
                     </tr>
@@ -174,8 +221,16 @@ export default function StandingsView({ games, onPick }) {
 
       <p className="legend">
         <span className="legend-item">
-          <span className="badge badge-in">✓</span> clinched at least a play-in berth — a top-10
-          finish is guaranteed
+          <span className="badge badge-in">✓ top 6</span> clinched a top-6 seed — straight to
+          the bracket, no play-in
+        </span>
+        <span className="legend-item">
+          <span className="badge badge-in">✓</span> clinched at least a play-in berth — a
+          top-10 finish is guaranteed
+        </span>
+        <span className="legend-item">
+          <span className="badge badge-mid">play-in</span> locked into the play-in — safe from
+          elimination, but a top-6 seed is out of reach
         </span>
         <span className="legend-item">
           <span className="badge badge-out">✕</span> eliminated — can no longer catch the 10th
@@ -183,6 +238,10 @@ export default function StandingsView({ games, onPick }) {
         </span>
         <span className="legend-item">
           <span className="legend-star">★</span> a team you follow
+        </span>
+        <span className="legend-item">
+          <span className="finish">Finish 3–7</span> — the final seeds still arithmetically
+          possible; a single number means the seed is locked
         </span>
       </p>
     </section>
