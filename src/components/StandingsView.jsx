@@ -57,12 +57,12 @@ function Row({ row, rank, onPick }) {
             <span className="team-nick">{row.team.name}</span>
           </span>
           {row.clinched && (
-            <span className="badge badge-in" title="Clinched a playoff spot">
+            <span className="badge badge-in" title="Clinched at least a play-in berth">
               ✓
             </span>
           )}
           {row.eliminated && (
-            <span className="badge badge-out" title="Eliminated from playoff contention">
+            <span className="badge badge-out" title="Eliminated — can no longer reach the play-in">
               ✕
             </span>
           )}
@@ -171,6 +171,20 @@ export default function StandingsView({ games, onPick }) {
           <Table key={key} caption={label} rows={byConf[key]} rankKey="confRank" onPick={onPick} />
         ))}
       </div>
+
+      <p className="legend">
+        <span className="legend-item">
+          <span className="badge badge-in">✓</span> clinched at least a play-in berth — a top-10
+          finish is guaranteed
+        </span>
+        <span className="legend-item">
+          <span className="badge badge-out">✕</span> eliminated — can no longer catch the 10th
+          seed (row dims)
+        </span>
+        <span className="legend-item">
+          <span className="legend-star">★</span> a team you follow
+        </span>
+      </p>
     </section>
   )
 }

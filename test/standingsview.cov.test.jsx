@@ -79,10 +79,23 @@ describe('StandingsView — clinched and eliminated badges', () => {
       </FollowProvider>
     )
 
-    // Ten Eastern teams clinched; five are eliminated.
-    expect(container.querySelectorAll('.badge-in').length).toBe(10)
-    expect(container.querySelectorAll('.badge-out').length).toBe(5)
+    // Ten Eastern teams clinched; five are eliminated. Scoped to the tables — the
+    // legend below them shows one decorative sample of each badge.
+    expect(container.querySelectorAll('.standings .badge-in').length).toBe(10)
+    expect(container.querySelectorAll('.standings .badge-out').length).toBe(5)
     // Eliminated teams carry the row-elim class.
     expect(container.querySelectorAll('.row-elim').length).toBe(5)
+  })
+
+  it('explains the badges in a visible legend (tooltips are hover-only)', () => {
+    const { container } = render(
+      <FollowProvider>
+        <StandingsView games={DECIDED} />
+      </FollowProvider>
+    )
+    const legend = container.querySelector('.legend')
+    expect(legend).toHaveTextContent(/✓ clinched at least a play-in berth/)
+    expect(legend).toHaveTextContent(/✕ eliminated — can no longer catch the 10th\s+seed/)
+    expect(legend).toHaveTextContent(/★ a team you follow/)
   })
 })
