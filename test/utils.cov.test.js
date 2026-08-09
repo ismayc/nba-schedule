@@ -112,17 +112,18 @@ describe('standings edge cases', () => {
   })
 
   it('reports a magic number for an in-race team with games still to play (line 277)', () => {
-    // BOS wins one; a slate of scheduled (unplayed) games gives the chasers remaining
-    // games, so the 11th seed can still catch BOS → BOS has not clinched and carries a
-    // live magic number rather than null.
-    const pairs = [
-      ['ATL', 'CHA'], ['CHI', 'CLE'], ['DET', 'IND'], ['MIA', 'MIL'],
-      ['ORL', 'PHI'], ['TOR', 'BKN'],
-    ]
+    // BOS wins one; ELEVEN Eastern teams each hold a scheduled game against a
+    // Western opponent. Those games are uncoupled — all eleven chasers can reach
+    // BOS's floor of 1 simultaneously — so even the scenario engine cannot clinch
+    // the play-in cut, and BOS carries a live magic number rather than null. (The
+    // old fixture used six intra-East pair games; the engine correctly proved only
+    // six chasers could ever reach the floor, which IS a top-10 clinch.)
+    const east = ['ATL', 'CHA', 'CHI', 'CLE', 'DET', 'IND', 'MIA', 'MIL', 'ORL', 'PHI', 'TOR']
+    const west = ['DAL', 'DEN', 'GS', 'HOU', 'LAC', 'LAL', 'MEM', 'MIN', 'NO', 'OKC', 'PHX']
     const games = [
       game({ home: 'BOS', away: 'NY', score: [110, 100] }),
-      ...pairs.map(([h, a], i) =>
-        game({ id: `sch-${i}`, home: h, away: a, score: undefined, tip: '2026-04-01T00:00:00.000Z' })
+      ...east.map((h, i) =>
+        game({ id: `sch-${i}`, home: h, away: west[i], score: undefined, tip: '2026-04-01T00:00:00.000Z' })
       ),
     ]
     const race = playoffRace(games)

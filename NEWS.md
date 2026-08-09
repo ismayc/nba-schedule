@@ -4,6 +4,17 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-09
+
+- **Sharper clinch math: banked ties + a late-season scenario engine.** A
+  chaser who can only TIE a team's lose-out floor stops counting once their
+  season series is finished and won (head-to-head leads the two-team chain);
+  and once the remaining coupled schedule is enumerable, a scenario engine
+  checks every outcome — chasers who still play each other can't all win out —
+  upgrading both the play-in and top-6 clinches. Three-plus-way floor ties stay
+  charged (the NBA's multi-team chain opens with division-leader status, which
+  a scenario can't know). Elimination stays purely arithmetic.
+
 ## 2026-08-08
 
 - **Official tiebreakers, play-in tiers, and a Finish column.** Conference
