@@ -6,6 +6,12 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-09
 
+- **Refresh hardening: logo retries + a self-naming season.** Logo mirroring
+  now uses the same retry/backoff and concurrency cap as every data call (the
+  WNBA lost a whole refresh to one transient logo fetch), and the season
+  number derives from the date — rolling to the upcoming season each
+  September — instead of a hardcoded `--season 2026` that would silently
+  refresh the archived season forever.
 - **Live window anchors on the Eastern day.** The scoreboard poll's three-day
   window was computed in UTC, but ESPN buckets `dates=` by the US-Eastern day —
   every US evening the window slid to {today, +1, +2} and dropped yesterday's

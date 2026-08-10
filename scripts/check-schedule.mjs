@@ -18,7 +18,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 
 const args = process.argv.slice(2)
-const SEASON = Number(args[args.indexOf('--season') + 1]) || 2026
+// Same season-naming rule as fetch-schedule.mjs: seasons are named for their ending
+// year, and from September the season of interest is the upcoming one.
+const defaultSeason = () => {
+  const d = new Date()
+  return d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear()
+}
+const SEASON = Number(args[args.indexOf('--season') + 1]) || defaultSeason()
 const QUIET = args.includes('--quiet')
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
