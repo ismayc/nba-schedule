@@ -386,3 +386,40 @@ describe('GameDetail coverage', () => {
     expect(document.querySelector('.modal')).toBeNull()
   })
 })
+
+describe('GameDetail — All-Star', () => {
+  it('drops the Matchup tab, stars the headers, and hides schedule actions', () => {
+    const allstar = GAMES.find((g) => g.seasonType === 'allstar')
+    open(allstar)
+    // The drafted sides aren't in the standings, so tale-of-the-tape/series
+    // don't apply — no Matchup tab, and "their schedule" doesn't exist.
+    expect(screen.queryByRole('tab', { name: 'Matchup' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /schedule$/ })).toBeNull()
+    // No franchise → star mark instead of a logo, display-name fallback, no record.
+    expect(document.querySelectorAll('.md-allstar-mark').length).toBe(2)
+    const strongs = [...document.querySelectorAll('.md-head strong')].map((n) => n.textContent)
+    expect(strongs).toContain(allstar.homeName)
+    expect(strongs).toContain(allstar.awayName)
+  })
+
+  it('surfaces the All-Star injury report in the box tab, since it has no Matchup tab', async () => {
+    fetchGameSummary.mockResolvedValue({
+      box: null,
+      teamStats: null,
+      injuries: [{ abbr: 'STARS', players: [{ name: 'Nikola Jokić', pos: 'C', status: 'Out', detail: 'Rest' }] }],
+      info: null,
+      winprob: null,
+    })
+    open(GAMES.find((g) => g.seasonType === 'allstar'))
+    expect(await screen.findByRole('heading', { name: 'Injury report' })).toBeInTheDocument()
+    expect(screen.getByText('Nikola Jokić')).toBeInTheDocument()
+  })
+
+  it('falls back to the abbr when an All-Star side carries no display name', () => {
+    const bare = { id: 'as-bare', tip: '2026-02-15T22:00:00.000Z', seasonType: 'allstar', home: 'COOP', away: 'SPO' }
+    open(bare)
+    const strongs = [...document.querySelectorAll('.md-head strong')].map((n) => n.textContent)
+    expect(strongs).toContain('SPO')
+    expect(strongs).toContain('COOP')
+  })
+})

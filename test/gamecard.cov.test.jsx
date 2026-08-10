@@ -144,3 +144,41 @@ describe('GameCard coverage', () => {
     expect(container.querySelector('.note').textContent).toBe('NBA Cup - Group Play')
   })
 })
+
+describe('All-Star card', () => {
+  it('renders a scored All-Star game with drafted-side names and its note', () => {
+    const allStar = {
+      id: 'as1',
+      tip: '2026-02-15T22:00:00.000Z',
+      seasonType: 'allstar',
+      home: 'STARS',
+      away: 'WORLD',
+      homeName: 'Team Stars',
+      awayName: 'World',
+      score: [35, 37],
+      note: 'NBA All-Star - Round Robin',
+      venue: 'Intuit Dome',
+    }
+    const { container } = wrap(allStar)
+    expect(screen.getByText('Team Stars')).toBeInTheDocument()
+    expect(screen.getByText('World')).toBeInTheDocument()
+    expect(screen.getByText(/Round Robin/)).toBeInTheDocument()
+    // Scored → the away–home score reads on the event card.
+    expect(container.querySelector('.allstar-score').textContent.replace(/\s/g, '')).toBe('37–35')
+  })
+
+  it('falls back to abbrs and the generic tag, with "vs" while unscored', () => {
+    const upcoming = {
+      id: 'as2',
+      tip: '2027-02-14T22:00:00.000Z',
+      seasonType: 'allstar',
+      home: 'COOP',
+      away: 'SPO',
+    }
+    const { container } = wrap(upcoming)
+    expect(screen.getByText('SPO')).toBeInTheDocument()
+    expect(screen.getByText('COOP')).toBeInTheDocument()
+    expect(screen.getByText(/All-Star Game/)).toBeInTheDocument()
+    expect(container.querySelector('.allstar-vs')).toBeInTheDocument()
+  })
+})

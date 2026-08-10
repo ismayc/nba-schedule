@@ -154,17 +154,20 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
   }, [gameId])
 
   // The detail groups into tabs so the modal isn't one long scroll. "Scoring" only
-  // exists once a game has been played (before that there's no line score to show).
+  // exists once a game has been played (before that there's no line score to show), and
+  // the All-Star Game has no "Matchup" tab — its drafted sides aren't in the
+  // standings, so tale-of-the-tape and season series don't apply.
   const played = !!game?.score
+  const isAllStar = game?.seasonType === 'allstar'
   const [tab, setTab] = useState('box')
   // A per-game score reveal for spoiler-free mode: shows THIS game's score inside the
   // popout without turning spoiler-free off everywhere else. Re-masks when another opens.
   const [revealed, setRevealed] = useState(false)
   useEffect(() => {
-    // Open a completed game on its box score, an upcoming one on the matchup.
-    setTab(played ? 'box' : 'matchup')
+    // Open a completed game (and any All-Star game) on its box score, else the matchup.
+    setTab(played || isAllStar ? 'box' : 'matchup')
     setRevealed(false)
-  }, [gameId, played])
+  }, [gameId, played, isAllStar])
 
   if (!game) return null
 
@@ -172,7 +175,7 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
   const TABS = [
     { id: 'box', label: 'Box score' },
     ...(played ? [{ id: 'scoring', label: 'Scoring' }] : []),
-    { id: 'matchup', label: 'Matchup' },
+    ...(isAllStar ? [] : [{ id: 'matchup', label: 'Matchup' }]),
   ]
   const activeTab = TABS.some((t) => t.id === tab) ? tab : TABS[0].id
 
@@ -200,11 +203,13 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
 
         <div className="md-head">
           <div className="md-side">
-            <TeamLogo abbr={game.away} size={52} />
-            <strong>{away?.displayName}</strong>
-            <span className="dim">
-              {A.w}–{A.l}
-            </span>
+            {away ? <TeamLogo abbr={game.away} size={52} /> : <span className="md-allstar-mark">⭐</span>}
+            <strong>{away?.displayName ?? game.awayName ?? game.away}</strong>
+            {A && (
+              <span className="dim">
+                {A.w}–{A.l}
+              </span>
+            )}
           </div>
           <div className="md-center">
             {scored ? (
@@ -234,11 +239,13 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
             )}
           </div>
           <div className="md-side">
-            <TeamLogo abbr={game.home} size={52} />
-            <strong>{home?.displayName}</strong>
-            <span className="dim">
-              {H.w}–{H.l}
-            </span>
+            {home ? <TeamLogo abbr={game.home} size={52} /> : <span className="md-allstar-mark">⭐</span>}
+            <strong>{home?.displayName ?? game.homeName ?? game.home}</strong>
+            {H && (
+              <span className="dim">
+                {H.w}–{H.l}
+              </span>
+            )}
           </div>
         </div>
 
@@ -318,6 +325,10 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
           <div className="md-panel" role="tabpanel">
             <PlayerBox summary={summary} game={game} hideScores={hide} />
             <TeamStatsSection summary={summary} game={game} hideScores={hide} />
+            {/* The All-Star Game has no Matchup tab, so its injury report (the player a
+                replacement stood in for) would otherwise have nowhere to show — surface
+                it here, beside the lineups it relates to. */}
+            {isAllStar && <InjuryReport summary={summary} game={game} />}
           </div>
         )}
 
@@ -388,14 +399,17 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
           </div>
         )}
 
-        <div className="md-actions">
-          <button className="chip" onClick={() => (onPickTeam?.(game.away), onClose())}>
-            <TeamLogo abbr={game.away} size={16} /> {away?.name} schedule
-          </button>
-          <button className="chip" onClick={() => (onPickTeam?.(game.home), onClose())}>
-            <TeamLogo abbr={game.home} size={16} /> {home?.name} schedule
-          </button>
-        </div>
+        {/* The All-Star sides aren't franchises, so "their schedule" doesn't exist. */}
+        {!isAllStar && (
+          <div className="md-actions">
+            <button className="chip" onClick={() => (onPickTeam?.(game.away), onClose())}>
+              <TeamLogo abbr={game.away} size={16} /> {away?.name} schedule
+            </button>
+            <button className="chip" onClick={() => (onPickTeam?.(game.home), onClose())}>
+              <TeamLogo abbr={game.home} size={16} /> {home?.name} schedule
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

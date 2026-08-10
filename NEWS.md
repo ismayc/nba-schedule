@@ -6,6 +6,15 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-09
 
+- **All-Star weekend is on the schedule.** The 2026 mini-tournament (Team
+  Stars / Team Stripes / World, three round-robin games and a championship)
+  never appeared: the drafted sides aren't franchises, so the per-team
+  schedule fetch can't see them, and a month-wide scoreboard query silently
+  truncated at its event cap before mid-February. The fetch now pulls the
+  All-Star-break window explicitly, and the UI gained the WNBA sibling's
+  event treatment — gold event cards with drafted-side names, a compact
+  week-strip row, and a detail modal with no Matchup tab (the sides aren't
+  in the standings) that surfaces the injury report beside the box score.
 - **Refresh hardening: logo retries + a self-naming season.** Logo mirroring
   now uses the same retry/backoff and concurrency cap as every data call (the
   WNBA lost a whole refresh to one transient logo fetch), and the season
