@@ -4,6 +4,20 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-11
+
+- **A daily watch for next season's schedule.** The NBA posts it in mid-August,
+  weeks before this app rolls over (`defaultSeason()` only switches in
+  September), so `scripts/check-new-season.mjs` and a `New season watch` workflow
+  check each morning and open an issue the day it lands. Quiet otherwise — a
+  "not yet" run writes one line to the job summary and nothing else, and the
+  issue search covers closed issues so it can only ever file once per season.
+
+  It lives in Actions rather than a scheduled cloud agent because ESPN is not
+  reachable from that sandbox — its egress proxy answers `EGRESS_BLOCKED` for
+  `site.api.espn.com`. GitHub's runners reach it fine, as the twice-daily
+  refresh already proves.
+
 ## 2026-08-10
 
 - **League leaders now use the NBA's published qualification minimums.** The

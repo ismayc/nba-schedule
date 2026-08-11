@@ -1,0 +1,79 @@
+name: New season watch
+
+# The NBA posts the next season's schedule in mid-August, weeks before this app rolls over
+# to it (fetch-schedule's defaultSeason() only switches in September). This watches for the
+# day it lands and opens an issue, so the rollover is a decision rather than a discovery.
+#
+# It lives here rather than in a scheduled cloud agent because ESPN's API is not reachable
+# from that sandbox — its egress proxy answers `EGRESS_BLOCKED` for site.api.espn.com.
+# GitHub's runners reach it fine, which the twice-daily refresh job already proves.
+#
+# Quiet by design: a "not yet" run writes a line to the job summary and nothing else. Only
+# a real release opens an issue, and only once.
+
+on:
+  schedule:
+    - cron: '0 15 * * *' # 08:00 America/Phoenix, which is UTC-7 year round
+  workflow_dispatch:
+
+permissions:
+  issues: write # the default token is read-only, so opening an issue needs this
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # Node built-ins only, so no install step.
+      - name: Check whether the next season is published
+        id: check
+        run: node scripts/check-new-season.mjs | tee -a "$GITHUB_OUTPUT"
+
+      - name: Say what was found
+        env:
+          SUMMARY: ${{ steps.check.outputs.summary }}
+        run: echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue per season, ever: the search covers open AND closed, so closing the issue
+      # doesn't make tomorrow's run open another.
+      - name: Open an issue the day it lands
+        if: steps.check.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEASON: ${{ steps.check.outputs.season }}
+          YEAR: ${{ steps.check.outputs.year }}
+          COUNT: ${{ steps.check.outputs.count }}
+          PARTIAL: ${{ steps.check.outputs.partial }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+        run: |
+          TITLE="NBA $SEASON schedule is out — roll the viewer over"
+          if [ -n "$(gh issue list --state all --search "$TITLE" --json number --jq '.[0].number')" ]; then
+            echo "Already filed for $SEASON — nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Body via a file, not a heredoc inside $( ): an apostrophe in the prose is enough
+          # to break the latter, and it did.
+          cat > /tmp/issue-body.md <<EOF
+          $SUMMARY
+
+          Found by \`scripts/check-new-season.mjs\` on $(date -u +%Y-%m-%d).
+          Partial release: \`$PARTIAL\` ($COUNT regular-season games; a full season is 1,230).
+
+          ## Rolling over
+
+          1. Archive the finished season first — \`node scripts/fetch-history.mjs\`
+          2. Pull the new one — \`node scripts/fetch-schedule.mjs --season $YEAR --allow-shrink\`
+             (\`--allow-shrink\` is required: the committed season has more games than a
+             freshly published schedule, and the shrink guard refuses that by default.)
+          3. Expect the suite to fail. Dozens of tests are pinned to the committed data —
+             games, standings and leaders — and updating them is the annual rollover chore,
+             not a regression.
+
+          \`defaultSeason()\` in \`scripts/fetch-schedule.mjs\` switches on its own from
+          September, so the twice-daily refresh picks the new season up then regardless.
+          EOF
+          gh issue create --title "$TITLE" --body-file /tmp/issue-body.md
