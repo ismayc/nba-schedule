@@ -145,14 +145,14 @@ describe('HistoryView — stats for one season', () => {
   it('renders a full leaderboard for every category, ties and all', async () => {
     const { container } = await stats()
     expect(container.querySelectorAll('.cats .cat')).toHaveLength(9)
-    // Opens on points: Embiid led 2022-23 at 33.1.
+    // Opens on points: Embiid led 2022-23 at 33.08.
     const first = container.querySelector('.leaders tr')
     expect(first).toHaveTextContent('Joel Embiid')
-    expect(first).toHaveTextContent('33.1')
+    expect(first).toHaveTextContent('33.08')
 
     // A percentage category formats as a percentage…
     await userEvent.click([...container.querySelectorAll('.cat')].find((b) => b.textContent === 'FG%'))
-    expect(container.querySelector('.leaders tr')).toHaveTextContent('73.2%')
+    expect(container.querySelector('.leaders tr')).toHaveTextContent('70.53%')
 
     // …and a counting category stays a whole number, with ties sharing a rank.
     await userEvent.click([...container.querySelectorAll('.cat')].find((b) => b.textContent === 'TD'))
@@ -167,7 +167,7 @@ describe('HistoryView — stats for one season', () => {
     await userEvent.click(container.querySelector('.lead-player'))
     // Embiid's real 2022-23 line — the modal needs the whole row, not just the value.
     expect(onPickPlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Joel Embiid', gamesPlayed: 66, avgRebounds: 10.2 })
+      expect.objectContaining({ name: 'Joel Embiid', gamesPlayed: 66, avgRebounds: 10.1515 })
     )
   })
 

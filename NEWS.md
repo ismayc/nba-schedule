@@ -6,6 +6,50 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-10
 
+- **League leaders now use the NBA's published qualification minimums.** The
+  per-game boards ranked anyone with a stat line, so 2025-26's rebounding
+  leaders read Jokić, Towns, Clingan, Wembanyama, Gobert, then Sabonis (19
+  games), Davis (20) and Edey (11) — and the steals board was topped by Kadary
+  Richmond at 2.7 in *three* games. The percentage boards had their own version
+  of the problem: they qualified on attempts per game, so a 46-game Jakob Poeltl
+  led FG% and a 37-game Tidjane Salaun made the 3P% board.
+
+  `leaderboard()` now applies the real minimums, as published at
+  basketball-reference.com/about/rate_stat_req.html for 2021-22 onward: **58
+  games** for a per-game average, **300 made field goals** for FG%, **82 made
+  threes** for 3P%. Each is scaled by how much of the season has been played
+  (capped at a full 82), so a board in December ranks who has been available
+  instead of sitting empty until March.
+
+  Verified across all six archived seasons × seven categories: **40 of 42 boards
+  now reproduce Basketball-Reference's published leaders exactly, in order.**
+  The two that don't are both blocks boards where BBRef lists a player below its
+  own stated 58-game minimum — 2024-25 Wembanyama (46 games) and 2020-21 Myles
+  Turner (47) — and BBRef is not self-consistent there, since the same 2024-25
+  board omits Anthony Davis at 51 games and 112 blocks. We follow the documented
+  rule.
+
+  Note that this deliberately will *not* match BBRef during a season in
+  progress: their in-season leaders page applies no games minimum at all (their
+  2026 WNBA points board currently ranks a 16-game player third).
+- **Leaders show the team(s) a player actually played for that season.** ESPN
+  answers a season-scoped stats query with the player's *current* club, and only
+  for players who later moved — Anthony Davis played 20 games for Dallas and
+  read as a Wizard, Walker Kessler as a Laker. The fetch now takes season
+  membership from the per-team splits, which are chronological and carry the
+  games with each, so a traded player carries a badge per club, oldest first
+  (Zubac: LAC 43 → IND 5, verified against Basketball-Reference). Archived
+  History boards carry the same field and show badges for the first time — they
+  previously hid them because the data was anachronistic.
+- **Per-game averages are shown at two decimals, and sorted at four.** ESPN
+  publishes them at full precision (Dončić 33.484375 PPG) and the boards sort on
+  the stored value, so one decimal was manufacturing ties and breaking them
+  alphabetically: 16 ties across the five per-game top tens, against two at 2dp.
+  Jokić now reads 12.86 RPG rather than a shared-looking 12.9. The two decimals
+  behind the display are never shown; they exist so a pair that reads the same
+  still sorts in the right order — which is how Basketball-Reference orders its
+  own boards (2023-24's Wembanyama and Capela both show 10.63, and 10.6338 vs
+  10.6301 is why Wembanyama is listed first).
 - **The refresh gate is now CI's own gate.** The twice-daily refresh ran plain
   `npm test` before committing, but a bot push triggers no CI — so refreshed
   data could break the 100% coverage invariant invisibly until the next human

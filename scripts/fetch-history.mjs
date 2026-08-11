@@ -56,8 +56,12 @@ const LEADERS_PER_CAT = 10
 // players table, keyed by id. A player who leads four categories is stored once, and the
 // rows the History tab hands to the leaders card and the player pop-out end up the same
 // shape those components already take for the live season.
+// `teams` is the season membership (chronological, with games each) that fetchLeaders now
+// resolves from the per-team splits. Carrying it is what will let an archived board show
+// team badges at all — the Leaders card hides them for seasons whose stored rows predate
+// this field, because `team` alone was ESPN's CURRENT team and so anachronistic.
 const PLAYER_FIELDS = [
-  'id', 'name', 'team', 'pos',
+  'id', 'name', 'team', 'teams', 'pos',
   'gamesPlayed', 'avgMinutes',
   'avgPoints', 'avgRebounds', 'avgAssists', 'avgSteals', 'avgBlocks',
   'avgFgMade', 'avgFgAtt', 'fgPct',
@@ -230,7 +234,7 @@ async function main() {
   for (let year = TO; year >= FROM; year--) {
     console.log(`Season ${seasonLabel(year)}…`)
     const games = await fetchSchedule(teams, year)
-    const leaderRows = await fetchLeaders(year)
+    const leaderRows = await fetchLeaders(year, teams)
     const s = summarise(year, games, leaderRows)
 
     if (!s.complete) {

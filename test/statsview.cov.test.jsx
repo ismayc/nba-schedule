@@ -83,9 +83,9 @@ describe('StatsView coverage', () => {
     // Double-double counts are whole numbers — no decimal, no percent.
     expect(container.querySelector('.lead-value').textContent).toMatch(/^\d+$/)
 
-    // Back to a per-game average category → a plain one-decimal value.
+    // Back to a per-game average category → a plain two-decimal value.
     await userEvent.click(screen.getByRole('button', { name: 'PPG' }))
-    expect(container.querySelector('.lead-value').textContent).toMatch(/^\d+\.\d$/)
+    expect(container.querySelector('.lead-value').textContent).toMatch(/^\d+\.\d\d$/)
   })
 
   it('routes team and player picks from every panel', async () => {

@@ -3,10 +3,11 @@ import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import StandingsView from '../src/components/StandingsView.jsx'
 import ScheduleView from '../src/components/ScheduleView.jsx'
-import StatsView from '../src/components/StatsView.jsx'
+import StatsView, { Leaders } from '../src/components/StatsView.jsx'
 import GameCard from '../src/components/GameCard.jsx'
 import { ServicesProvider } from '../src/context/services.jsx'
 import { GAMES } from '../src/data/schedule.js'
+import { leaderboard } from '../src/utils/stats.js'
 import { dayKey, todayKey } from '../src/utils/time.js'
 
 const TZ = 'America/New_York'
@@ -132,12 +133,67 @@ describe('GameCard', () => {
 })
 
 describe('StatsView leaders', () => {
-  it('forces one decimal on per-game averages so the column stays aligned', () => {
+  it('forces two decimals on per-game averages so the column stays aligned', () => {
     const { container } = render(<StatsView games={GAMES} tz={TZ} />)
-    // Default category is Points (PPG): every value reads like "21.0", never bare "21".
+    // Default category is Points (PPG): every value reads like "21.00", never bare "21".
     const vals = [...container.querySelectorAll('.lead-value')].map((n) => n.textContent)
     expect(vals.length).toBeGreaterThan(0)
-    for (const v of vals) expect(v).toMatch(/^\d+\.\d$/)
+    for (const v of vals) expect(v).toMatch(/^\d+\.\d\d$/)
+  })
+
+  // A player who was traded shows both clubs, oldest first — the badge is the team he
+  // played the games for, not the one holding his rights when the feed was read.
+  it('badges every team a leader played for that season', () => {
+    const traded = [
+      {
+        id: '1',
+        name: 'Traded Center',
+        pos: 'C',
+        gamesPlayed: 48,
+        avgRebounds: 10.6,
+        teams: [
+          { abbr: 'LAC', gp: 43 },
+          { abbr: 'IND', gp: 5 },
+        ],
+      },
+    ]
+    const { container } = render(
+      <Leaders getRows={() => leaderboard('avgRebounds', { players: traded })} />
+    )
+    const cell = container.querySelector('.lead-team')
+    expect(cell.querySelectorAll('button')).toHaveLength(2)
+    expect(cell.querySelector('.lead-arrow')).toBeInTheDocument()
+    // The hover text carries the games with each, which is the whole reason the order
+    // has to be right: 43 games then 5, not the other way round.
+    expect([...cell.querySelectorAll('button')].map((b) => b.title)).toEqual([
+      'LAC · 43 games',
+      'IND · 5 games',
+    ])
+  })
+
+  it('routes a click on any of a leader’s teams to that team', async () => {
+    const onPickTeam = vi.fn()
+    const traded = [
+      {
+        id: '1',
+        name: 'Traded Center',
+        pos: 'C',
+        gamesPlayed: 48,
+        avgRebounds: 10.6,
+        teams: [
+          { abbr: 'LAC', gp: 43 },
+          { abbr: 'IND', gp: 5 },
+        ],
+      },
+    ]
+    const { container } = render(
+      <Leaders
+        getRows={() => leaderboard('avgRebounds', { players: traded })}
+        onPickTeam={onPickTeam}
+      />
+    )
+    await userEvent.click(container.querySelectorAll('.lead-team button')[1])
+    expect(onPickTeam).toHaveBeenCalledWith('IND')
   })
 
   it('opens the player pop-out with the full stat row when a name is clicked', async () => {

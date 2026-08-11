@@ -10,6 +10,9 @@ import TeamLogo from './TeamLogo.jsx'
 
 const one = (n) => n.toFixed(1)
 const signed = (n) => (n > 0 ? `+${one(n)}` : one(n))
+// Player rate stats are stored and ranked at two decimals; the roster line shows the same
+// numbers as the leaderboards rather than a rounder version of them.
+const two = (n) => n.toFixed(2)
 
 // Form as a strip of results, oldest first — the same read as the standings dots but
 // with the opponent attached.
@@ -123,8 +126,8 @@ export default function TeamPanel({ abbr, season, games, tz, hideScores, onClose
                     <span className="lead-pos">{p.pos}</span>
                   </span>
                   <span className="tp-p-line">
-                    {one(p.avgPoints)} <i>pts</i> · {one(p.avgRebounds)} <i>reb</i> ·{' '}
-                    {one(p.avgAssists)} <i>ast</i>
+                    {two(p.avgPoints)} <i>pts</i> · {two(p.avgRebounds)} <i>reb</i> ·{' '}
+                    {two(p.avgAssists)} <i>ast</i>
                   </span>
                 </div>
               ))}

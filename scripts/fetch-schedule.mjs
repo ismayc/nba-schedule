@@ -384,7 +384,34 @@ const LEADER_FIELDS = {
 const round = (v, p = 1) =>
   typeof v === 'number' && Number.isFinite(v) ? Number(v.toFixed(p)) : null
 
-export async function fetchLeaders(season = SEASON) {
+// Which team(s) a player actually suited up for THIS season.
+//
+// `athlete.teamShortName` is the team they are on TODAY, not the one they played the
+// season for — a season-scoped query still answers with the current club, and only for
+// players who later moved, so a board silently mixes correct and anachronistic badges
+// (2025-26's Anthony Davis played 20 games for Dallas and reads as a Wizard).
+// `athlete.teams[]` IS the season membership, but its ORDER is not trustworthy: Harden
+// reads LAC,CLE (chronological) while Zubac reads IND,LAC (reversed).
+//
+// So for the ~13% of players who changed team mid-season, take the per-team splits, which
+// ARE chronological and carry the games played with each. Verified against
+// basketball-reference's 2025-26 per-game table: Zubac LAC 43 then IND 5.
+async function seasonSplits(id, season, abbrById) {
+  const d = await getJson(`${WEB}/athletes/${id}/stats?region=us&lang=en&season=${season}`)
+  const cat = (d.categories || []).find((c) => c.name === 'averages')
+  const gpAt = (cat?.labels || []).indexOf('GP')
+  return (cat?.statistics || [])
+    // Only rows carrying a teamId are per-team splits; the season's combined row has no
+    // teamId (it is labelled "2025-26 Totals") and would double-count.
+    .filter((r) => r.teamId && String(r.season?.year) === String(season))
+    .map((r) => ({ abbr: abbrById.get(String(r.teamId)), gp: Number(r.stats?.[gpAt]) }))
+    .filter((t) => t.abbr && Number.isFinite(t.gp))
+}
+
+export async function fetchLeaders(season = SEASON, teams) {
+  // teamId → our abbreviation, so the splits (which identify a team by id + slug) resolve
+  // to the same strings teams.js uses — "UTAH", not whatever the splits payload spells.
+  const abbrById = new Map(((await (teams ?? fetchTeams())) || []).map((t) => [String(t.id), t.abbr]))
   // The qualified list spans multiple pages (578 athletes in 2026) — a single
   // limit=300 call silently read page 1 of 2, dropping 278 players including the
   // real FG% leader. Follow pagination.pages.
@@ -413,22 +440,73 @@ export async function fetchLeaders(season = SEASON) {
       if (byId.has(a.id)) continue
       const stats = {}
       for (const [field, espnName] of Object.entries(LEADER_FIELDS)) {
-        // Percentages 1dp; per-game averages 1dp; counts/totals 0dp.
-        const precision = field.endsWith('Pct') || field.startsWith('avg') ? 1 : 0
+        // Rates (percentages and per-game averages) keep four decimals; counts/totals none.
+        //
+        // The app DISPLAYS two — one decimal manufactured ties that then broke on name (16
+        // of them across the five per-game top tens, against two at 2dp). The extra two
+        // decimals are never shown; they exist so the sort can separate a pair that reads
+        // the same, which is how basketball-reference orders its own boards: 2023-24's
+        // Wembanyama and Capela both show 10.63 rebounds, and 10.6338 vs 10.6301 is the
+        // reason they list Wembanyama first.
+        const precision = field.endsWith('Pct') || field.startsWith('avg') ? 4 : 0
         stats[field] = round(read(categories, espnName), precision)
       }
       byId.set(a.id, {
         id: a.id,
         name: a.displayName,
         short: a.shortName,
-        team: a.teamShortName,
         pos: a.position?.abbreviation || null,
+        // Season membership, resolved below; `teamShortName` is deliberately NOT stored.
+        teams: (a.teams || []).map((t) => t.abbreviation).filter(Boolean),
+        current: a.teamShortName,
         ...stats,
       })
     }
   }
 
-  return [...byId.values()]
+  const all = [...byId.values()]
+
+  // One extra request per player who changed team, and none for anyone who didn't (76 of
+  // 578 in 2025-26). Same concurrency cap as every other burst here.
+  await mapLimit(
+    all.filter((p) => p.teams.length > 1),
+    CONCURRENCY,
+    async (p) => {
+      try {
+        const split = await seasonSplits(p.id, season, abbrById)
+        // A membership of two can still split to ONE team: signed and waived without
+        // appearing, or a two-way deal that never produced a game. The splits are the
+        // authority — John Tonje reads BOS,UTAH but played only Boston's 6 games, exactly
+        // as basketball-reference has him (one row, no 2TM).
+        if (split.length) p.split = split
+      } catch (err) {
+        // A refresh runs with no human in the loop, so a flaky split lookup must not sink
+        // a run whose real payload — the schedule — already came back clean. Fall back to
+        // the unordered membership below and say so.
+        console.warn(`  ! splits for ${p.name} failed (${err.message}); order unverified`)
+      }
+    }
+  )
+
+  for (const p of all) {
+    // Chronological with games each when the splits resolved. A one-team season needs no
+    // split — all their games are with that team. Anything left (no membership at all, or
+    // a split lookup that failed) keeps the raw order with games unknown.
+    const single = p.teams.length === 1
+    p.teams =
+      p.split ??
+      (p.teams.length
+        ? p.teams.map((abbr) => ({ abbr, gp: single ? p.gamesPlayed : null }))
+        : [{ abbr: p.current, gp: p.gamesPlayed }])
+    // The badge team: whoever they played the most games for. A 43-game Clipper who
+    // finished on a 5-game Pacers stint belongs under LAC, and his season line is mostly
+    // LAC's. Unknown splits keep the first entry.
+    p.team = p.teams.reduce((best, t) => ((t.gp ?? 0) > (best.gp ?? 0) ? t : best)).abbr
+    delete p.split
+    delete p.current
+  }
+
+  return all
     .filter((p) => p.team && p.gamesPlayed)
     .sort((a, b) => (b.avgPoints ?? 0) - (a.avgPoints ?? 0))
 }
@@ -525,7 +603,7 @@ async function main() {
   )
 
   console.log('Fetching player stats…')
-  const leaders = await fetchLeaders()
+  const leaders = await fetchLeaders(SEASON, teams)
   console.log(`  ${leaders.length} qualified players`)
 
   await writeFile(

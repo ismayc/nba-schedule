@@ -102,14 +102,33 @@ export const LEADER_CATEGORIES = [
   { key: 'tripleDouble', label: 'Triple-doubles', short: 'TD' },
 ]
 
-// Rate categories need a volume floor, or a low-attempt fluke (a center going 1-for-1 from
-// three) tops the percentage list. Require a per-game attempts minimum AND a share of the
-// games the leader has played, so it scales from mid-season to a full 82-game slate.
-const QUALIFIERS = {
-  fgPct: { att: 'avgFgAtt', perGame: 5 },
-  threePct: { att: 'avgThreeAtt', perGame: 2 },
+// A leaderboard needs a volume floor, or it ranks flukes: unfiltered, 2025-26's steals
+// leader was Kadary Richmond at 2.7 in THREE games, and the rebounding board ran Sabonis
+// (19 games), Davis (20) and Edey (11) above Duren and Adebayo, who played the season.
+//
+// These are the NBA's own qualification minimums, as published by basketball-reference for
+// 2021-22 to the present (basketball-reference.com/about/rate_stat_req.html) — matching
+// them is what makes this board agree with theirs:
+//
+//   per-game averages   58 games
+//   field goal %       300 field goals MADE (not attempted)
+//   3-point %           82 threes made
+//
+// Each is stated for a full 82-game season, so each is scaled by how much of the season has
+// actually been played — otherwise every board sits empty until March. See SEASON_SHARE.
+const FULL_SEASON = 82
+const MIN_GAMES = 58
+const MADE_MINIMUMS = {
+  fgPct: { made: 'avgFgMade', min: 300 },
+  threePct: { made: 'avgThreeMade', min: 82 },
 }
-const QUALIFIED_GAMES_SHARE = 0.4
+const RATE_STATS = new Set([
+  'avgPoints',
+  'avgRebounds',
+  'avgAssists',
+  'avgSteals',
+  'avgBlocks',
+])
 
 // Counting stats (not per-game averages): only players who actually recorded one belong on
 // the board — otherwise the tie logic pads it with everyone stuck on zero.
@@ -120,13 +139,19 @@ const COUNT_STATS = new Set(['doubleDouble', 'tripleDouble'])
 export function leaderboard(key, { limit = 10, players = PLAYERS } = {}) {
   let eligible = players.filter((p) => p[key] != null)
   if (COUNT_STATS.has(key)) eligible = eligible.filter((p) => p[key] > 0)
-  const q = QUALIFIERS[key]
-  if (q) {
-    // A rotation share of the leader's games, so a small-sample hot streak doesn't rank.
-    const maxGP = eligible.reduce((m, p) => Math.max(m, p.gamesPlayed ?? 0), 0)
-    const minGP = QUALIFIED_GAMES_SHARE * maxGP
-    eligible = eligible.filter((p) => (p[q.att] ?? 0) >= q.perGame && (p.gamesPlayed ?? 0) >= minGP)
-  }
+  // How much of a season this is: the busiest player's games against a full 82. A finished
+  // season gives 1, so the thresholds are exactly the NBA's published ones; a season in
+  // progress scales them down, which is the only way a January board isn't empty. Capped at
+  // 1 so an 83rd game (a makeup, say) can't inflate the bar past the real rule.
+  const maxGP = eligible.reduce((m, p) => Math.max(m, p.gamesPlayed ?? 0), 0)
+  const share = Math.min(1, maxGP / FULL_SEASON)
+  if (RATE_STATS.has(key))
+    eligible = eligible.filter((p) => (p.gamesPlayed ?? 0) >= MIN_GAMES * share)
+  const q = MADE_MINIMUMS[key]
+  if (q)
+    eligible = eligible.filter(
+      (p) => (p[q.made] ?? 0) * (p.gamesPlayed ?? 0) >= q.min * share
+    )
   const sorted = [...eligible].sort((a, b) => b[key] - a[key] || a.name.localeCompare(b.name))
 
   const ranked = []
@@ -144,6 +169,11 @@ export function leaderboard(key, { limit = 10, players = PLAYERS } = {}) {
   const cut = ranked[limit - 1]
   return cut ? ranked.filter((p) => p.rank <= cut.rank) : ranked
 }
+
+// Hover text for one of a player's season teams. `gp` is absent only when ESPN's per-team
+// splits couldn't be resolved at fetch time, in which case the count is genuinely unknown
+// and claiming one would be worse than omitting it.
+export const teamLabel = (t) => (t.gp == null ? t.abbr : `${t.abbr} · ${t.gp} games`)
 
 export const playersByTeam = (abbr, players = PLAYERS) =>
   players.filter((p) => p.team === abbr).sort((a, b) => (b.avgPoints ?? 0) - (a.avgPoints ?? 0))

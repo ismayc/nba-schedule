@@ -13,6 +13,7 @@ const fullPlayer = {
   name: 'Test Player',
   short: 'T. Player',
   team: 'BOS',
+  teams: [{ abbr: 'BOS', gp: 10 }],
   pos: 'C',
   gamesPlayed: 10,
   avgMinutes: 30,
@@ -51,7 +52,14 @@ describe('PlayerModal coverage', () => {
 
   it('handles an unknown team, a missing average, an empty name, and no game log', async () => {
     fetchPlayer.mockResolvedValue(null) // no bio, no games
-    const player = { ...fullPlayer, name: '', team: 'ZZZ', avgSteals: undefined, pos: undefined }
+    const player = {
+      ...fullPlayer,
+      name: '',
+      team: 'ZZZ',
+      teams: [{ abbr: 'ZZZ', gp: 10 }],
+      avgSteals: undefined,
+      pos: undefined,
+    }
     const { container } = render(<PlayerModal player={player} tz="America/New_York" onClose={() => {}} />)
 
     // Unknown team → no logo, the raw abbreviation stands in for the display name.
@@ -75,8 +83,8 @@ describe('PlayerModal coverage', () => {
     expect(container.querySelector('.pm-sub .logo')).toBeInTheDocument()
     expect(screen.getByText(/· C/)).toBeInTheDocument()
     expect(screen.getByText('Loading…')).toBeInTheDocument()
-    // Numeric averages format to one decimal.
-    expect(screen.getByText('20.0')).toBeInTheDocument()
+    // Numeric averages format to two decimals.
+    expect(screen.getByText('20.00')).toBeInTheDocument()
   })
 
   it('renders a full bio with jersey, age, and a country flag', async () => {

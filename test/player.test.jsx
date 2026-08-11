@@ -53,6 +53,7 @@ const player = {
   name: 'Shai Gilgeous-Alexander',
   short: 'S. Gilgeous-Alexander',
   team: 'OKC',
+  teams: [{ abbr: 'OKC', gp: 68 }],
   pos: 'G',
   gamesPlayed: 68,
   avgMinutes: 33.2,
@@ -130,11 +131,11 @@ describe('PlayerModal (component)', () => {
   it('shows committed season stats immediately, then the fetched game log', async () => {
     stub()
     render(<PlayerModal player={player} tz="America/New_York" onClose={() => {}} />)
-    // Committed and instant — averages forced to one decimal (blocks 2 → "2.0").
+    // Committed and instant — averages forced to two decimals (blocks 2 → "2.00").
     expect(screen.getByText('Shai Gilgeous-Alexander')).toBeInTheDocument()
-    expect(screen.getByText('31.1')).toBeInTheDocument()
-    expect(screen.getByText('2.0')).toBeInTheDocument()
-    expect(screen.getByText(/FG 9.2-17.6/)).toBeInTheDocument()
+    expect(screen.getByText('31.10')).toBeInTheDocument()
+    expect(screen.getByText('2.00')).toBeInTheDocument()
+    expect(screen.getByText(/FG 9.20-17.60/)).toBeInTheDocument()
     // The fetched recent games fill in.
     expect(await screen.findByText('DEN')).toBeInTheDocument()
     expect(screen.getByText('LAL')).toBeInTheDocument()
@@ -147,14 +148,33 @@ describe('PlayerModal (component)', () => {
     expect(flag.style.display).toBe('none')
   })
 
-  it('forces whole-number split averages to one decimal', () => {
+  it('names both clubs for a player who was traded mid-season', () => {
+    stub()
+    const traded = {
+      ...player,
+      team: 'LAC',
+      teams: [
+        { abbr: 'LAC', gp: 43 },
+        { abbr: 'IND', gp: 5 },
+      ],
+    }
+    render(<PlayerModal player={traded} tz="America/New_York" onClose={() => {}} />)
+    const sub = document.querySelector('.pm-sub')
+    // Oldest first, and both named in full — a single badge would have to pick one.
+    expect(sub).toHaveTextContent('LA Clippers')
+    expect(sub).toHaveTextContent('Indiana Pacers')
+    expect(sub.querySelector('.pm-arrow')).toBeInTheDocument()
+    expect(sub.querySelectorAll('.logo')).toHaveLength(2)
+  })
+
+  it('forces whole-number split averages to two decimals', () => {
     stub()
     // A player whose per-game FG/3PT/FT splits land on whole numbers must still read
-    // "8.0-15.0", not "8-15", to match the decimal convention.
+    // "8.00-15.00", not "8-15", to match the decimal convention.
     const whole = { ...player, avgFgMade: 8, avgFgAtt: 15, avgThreeMade: 2, avgThreeAtt: 5 }
     render(<PlayerModal player={whole} tz="America/New_York" onClose={() => {}} />)
-    expect(screen.getByText(/FG 8.0-15.0/)).toBeInTheDocument()
-    expect(screen.getByText(/3PT 2.0-5.0/)).toBeInTheDocument()
+    expect(screen.getByText(/FG 8.00-15.00/)).toBeInTheDocument()
+    expect(screen.getByText(/3PT 2.00-5.00/)).toBeInTheDocument()
   })
 
   it('falls back to the player’s initials when the headshot 404s', () => {
