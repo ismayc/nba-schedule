@@ -18,6 +18,16 @@ data/source updates, deployment). Newest day on top.
   `site.api.espn.com`. GitHub's runners reach it fine, as the twice-daily
   refresh already proves.
 
+- **The watch now drafts the rollover PR too.** On a complete release it also
+  branches `season-<label>`, runs `fetch-history.mjs` (archiving the finished
+  season while `teams.js` still names it) then
+  `fetch-schedule.mjs --season <year> --allow-shrink`, and opens a **draft** PR —
+  the mechanical half of the rollover done, leaving the judgement half. A
+  *partial* release only files the issue and waits, so a staged schedule can
+  never commit half a season. One PR per season ever: an existing branch, open
+  or merged or abandoned, stops it. Expect the suite to fail on that branch —
+  the pinned data tests are the annual chore, not a regression.
+
 ## 2026-08-10
 
 - **League leaders now use the NBA's published qualification minimums.** The
