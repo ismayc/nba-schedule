@@ -4,6 +4,17 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-12
+
+- **The season watch now runs just after the league's 3 pm ET release slot.**
+  The daily cron moved from 11:05 am ET to 3:05 pm ET, and a release-day burst
+  polls every 10 minutes from 3:00 to 7:50 pm ET on Aug 13 — the 2026-27
+  schedule drops at 3 pm ET that day, GitHub's scheduler routinely delays a
+  single cron by up to an hour, and ESPN takes a while to ingest the release
+  (today it posted the 80-game marquee slate hours after the morning watch had
+  already reported "not yet"). A concurrency group queues bunched-up runs so
+  the once-ever issue/branch guards can't race.
+
 ## 2026-08-11
 
 - **A daily watch for next season's schedule.** The NBA posts it in mid-August,

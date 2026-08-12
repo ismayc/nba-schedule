@@ -14,8 +14,22 @@ name: New season watch
 
 on:
   schedule:
-    - cron: '0 15 * * *' # 08:00 America/Phoenix, which is UTC-7 year round
+    # The league publishes full schedules at 15:00 ET, so watch just after that rather
+    # than mid-morning. 19:05 UTC is 15:05 EDT; the watch only matters in August, so
+    # the EST drift is irrelevant.
+    - cron: '5 19 * * *'
+    # Release-day burst: the 2026-27 schedule drops 2026-08-13 at 15:00 ET, and ESPN
+    # takes a while to ingest it — poll every 10 minutes from 15:00 to 19:50 ET that
+    # day. Remove after the rollover; left in place it re-fires each Aug 13, which the
+    # once-ever issue/branch guards make harmless.
+    - cron: '*/10 19-23 13 8 *'
   workflow_dispatch:
+
+# Scheduler delays can bunch burst runs together; the once-ever guards below check
+# before they create, so two runs in flight at once could double-file. Queue instead.
+concurrency:
+  group: new-season-watch
+  cancel-in-progress: false
 
 permissions:
   issues: write # the default token is read-only, so opening an issue needs this
