@@ -6,6 +6,14 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-13
 
+- **CI's concurrency group no longer lets a PR branch cancel main's runs.** The
+  whole CI workflow (including `pull_request` runs) shared one static `pages`
+  group, and GitHub keeps only one pending run per group, each new arrival
+  cancelling the previous pending one — invisible until today, when the repo had
+  its first busy PR (the rollover) and main's CI runs kept dying "cancelled"
+  before their deploy could start. CI now groups per ref, refresh-data got its
+  own group, and the only genuinely shared lock — the Pages deploy — moved to a
+  job-level `pages` group on both deploy jobs.
 - **The season watch missed the release — detector fixed.** The 2026-27
   schedule dropped today and every watch run (including the release-day burst)
   reported "not yet": the check read `ev.seasonType?.id` — which does not exist
