@@ -21,12 +21,23 @@ const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 const args = process.argv.slice(2)
 const SEASON = Number(args[args.indexOf('--season') + 1]) || new Date().getFullYear() + 1
 
-// A full NBA regular season. A count well under this means a staged release.
-const FULL_SEASON_GAMES = 1230
+// The complete INITIAL release. Since the NBA Cup era the league publishes 80 games
+// per team (1200 games) in August; the Cup knockout rounds and each team's remaining
+// games are scheduled in December after group play, growing the season to its full
+// 1230. So 1200 is "complete" for release-day purposes — holding out for 1230 would
+// report partial until December. (2026-27 released 2026-08-13 with exactly 1200 games
+// on the team schedules; the scoreboard carried 1206.)
+const INITIAL_RELEASE_GAMES = 1200
 
-// ESPN seasonType ids: 1 preseason, 2 regular, 3 postseason, 4 all-star, 5 play-in.
-const REGULAR = '2'
-const typeOf = (ev) => String(ev.seasonType?.id ?? ev.competitions?.[0]?.type?.id ?? '')
+// ESPN season types: 1 preseason, 2 regular, 3 postseason. On the SCOREBOARD payload
+// this lives only in ev.season.type — ev.seasonType does not exist here (it does on
+// the team-schedule endpoint fetch-schedule.mjs uses, which is where the old
+// discriminator was copied from), and competitions[0].type.id is the GAME-FORMAT
+// type (1 = a standard game, even in April). Falling through to the format id is how
+// the 2026-08-13 release was missed: all 1206 regular-season games counted as
+// "preseason" and the watch stayed silent.
+const REGULAR = 2
+const typeOf = (ev) => Number(ev.season?.type ?? 0)
 
 // The scoreboard caps a range query around 1000 events, so walk month by month rather than
 // asking for the whole season at once and silently under-counting.
@@ -48,11 +59,11 @@ for (const [from, to] of MONTHS) {
 
 const all = [...games.values()]
 const regular = all.filter((ev) => typeOf(ev) === REGULAR).sort((a, b) => (a.date < b.date ? -1 : 1))
-const preseason = all.filter((ev) => typeOf(ev) === '1')
+const preseason = all.filter((ev) => typeOf(ev) === 1)
 
 const label = `${SEASON - 1}-${String(SEASON).slice(2)}`
 const released = regular.length > 0
-const partial = released && regular.length < FULL_SEASON_GAMES
+const partial = released && regular.length < INITIAL_RELEASE_GAMES
 
 // Consumed by the workflow via $GITHUB_OUTPUT, so keep these keys stable and single-line.
 console.log(`released=${released}`)
@@ -69,7 +80,7 @@ if (!released) {
   const when = (ev) => ev.date.slice(0, 10)
   console.log(
     `summary=${label} schedule is OUT: ${regular.length} regular-season games` +
-      `${partial ? ` (PARTIAL — a full season is ${FULL_SEASON_GAMES})` : ''}, ` +
+      `${partial ? ` (PARTIAL — a complete initial release is ${INITIAL_RELEASE_GAMES})` : ''}, ` +
       `opening ${when(first)} ${first.name}, through ${when(last)}.`
   )
 }

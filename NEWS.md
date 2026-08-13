@@ -4,6 +4,25 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-13
+
+- **The season watch missed the release — detector fixed.** The 2026-27
+  schedule dropped today and every watch run (including the release-day burst)
+  reported "not yet": the check read `ev.seasonType?.id` — which does not exist
+  on the scoreboard payload — and fell through to `competitions[0].type.id`,
+  the *game-format* type (1 = a standard game, even in April), so all 1206
+  posted regular-season games were counted as preseason. The discriminator had
+  been copied from `fetch-schedule.mjs`, whose team-schedule endpoint really
+  does carry `ev.seasonType`. The check now reads `ev.season.type`, the field
+  the scoreboard actually provides. Verified live: `released=true, count=1206`.
+- **The completeness floor now matches the Cup-era initial release.** The
+  league publishes 80 games per team (1200) in August and schedules the Cup
+  knockout rounds plus each team's remaining games in December — so holding out
+  for the full 1230 would have reported "partial" (issue only, no rollover PR)
+  until December. A release of 1200+ now counts as complete.
+- The rollover itself was done by hand today on the `season-2026-27` branch
+  (draft PR #3), since the watch had missed its moment.
+
 ## 2026-08-12
 
 - **The season watch now runs just after the league's 3 pm ET release slot.**
