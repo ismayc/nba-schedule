@@ -4,6 +4,17 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-13
+
+- **2026-27 season rollover (draft).** The NBA released the 2026-27 schedule
+  today; this branch commits the initial 1200-game release (opening night
+  2026-10-20 BOS @ DET, finale 2027-04-11 PHX @ LAL), including 60 NBA Cup
+  group-play games and the Paris, Mexico City, and Manchester internationals.
+  The Cup knockout rounds and ~30 remaining regular-season games are added by
+  the NBA in December and will arrive via the data refresh. The 2025-26 season
+  (champion NY) was already archived in History. Test suite retuning to the
+  new season is in progress on this branch.
+
 ## 2026-08-12
 
 - **The season watch now runs just after the league's 3 pm ET release slot.**
