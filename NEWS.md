@@ -6,6 +6,14 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-13
 
+- **CI's concurrency group no longer lets a PR branch cancel main's runs.** The
+  whole CI workflow (including `pull_request` runs) shared one static `pages`
+  group, and GitHub keeps only one pending run per group, each new arrival
+  cancelling the previous pending one — invisible until today, when the repo had
+  its first busy PR (the rollover) and main's CI runs kept dying "cancelled"
+  before their deploy could start. CI now groups per ref, refresh-data got its
+  own group, and the only genuinely shared lock — the Pages deploy — moved to a
+  job-level `pages` group on both deploy jobs.
 - **2026-27 season rollover (draft).** The NBA released the 2026-27 schedule
   today; this branch commits the initial 1200-game release (opening night
   2026-10-20 BOS @ DET, finale 2027-04-11 PHX @ LAL), including 60 NBA Cup
