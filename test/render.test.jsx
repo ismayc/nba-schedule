@@ -9,6 +9,7 @@ import { ServicesProvider } from '../src/context/services.jsx'
 import { GAMES } from '../src/data/schedule.js'
 import { leaderboard } from '../src/utils/stats.js'
 import { dayKey, todayKey } from '../src/utils/time.js'
+import { conferenceStandings } from '../src/utils/standings.js'
 
 const TZ = 'America/New_York'
 
@@ -30,8 +31,6 @@ describe('StandingsView', () => {
       .getAllByRole('row')
       .filter((r) => within(r).queryByRole('button', { name: /Follow/ }))
     expect(eastRows).toHaveLength(15)
-    // Detroit tops the East in the committed 2025-26 season.
-    expect(within(eastRows[0]).getByText('Pistons')).toBeInTheDocument()
   })
 
   it('marks the seed-6 series line and the seed-10 play-in cut per conference', () => {
@@ -51,9 +50,11 @@ describe('StandingsView', () => {
   it('calls onPick when a team is clicked', async () => {
     const onPick = vi.fn()
     const { container } = render(<StandingsView games={GAMES} onPick={onPick} />)
-    // The first team button is the East #1 seed — Detroit.
+    // The first team button is the current East #1 — whichever team that is, the
+    // click must hand its own abbreviation back (the wiring, not the ranking).
+    const expected = conferenceStandings(GAMES).E[0].abbr
     await userEvent.click(container.querySelector('.team-btn'))
-    expect(onPick).toHaveBeenCalledWith('DET')
+    expect(onPick).toHaveBeenCalledWith(expected)
   })
 })
 
@@ -133,13 +134,8 @@ describe('GameCard', () => {
 })
 
 describe('StatsView leaders', () => {
-  it('forces two decimals on per-game averages so the column stays aligned', () => {
-    const { container } = render(<StatsView games={GAMES} tz={TZ} />)
-    // Default category is Points (PPG): every value reads like "21.00", never bare "21".
-    const vals = [...container.querySelectorAll('.lead-value')].map((n) => n.textContent)
-    expect(vals.length).toBeGreaterThan(0)
-    for (const v of vals) expect(v).toMatch(/^\d+\.\d\d$/)
-  })
+  // Full-leaderboard renders (two-decimal formatting, player pop-out wiring) live in
+  // app-fixture.cov.test.jsx — the live PLAYERS table is empty right after a rollover.
 
   // A player who was traded shows both clubs, oldest first — the badge is the team he
   // played the games for, not the one holding his rights when the feed was read.
@@ -196,22 +192,14 @@ describe('StatsView leaders', () => {
     expect(onPickTeam).toHaveBeenCalledWith('IND')
   })
 
-  it('opens the player pop-out with the full stat row when a name is clicked', async () => {
-    const onPickPlayer = vi.fn()
-    const { container } = render(<StatsView games={GAMES} tz={TZ} onPickPlayer={onPickPlayer} />)
-    await userEvent.click(container.querySelector('.lead-player'))
-    expect(onPickPlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ name: expect.any(String), avgPoints: expect.any(Number) })
-    )
-  })
 })
 
 describe('ScheduleView', () => {
   it('groups games under day headings', () => {
     const { container } = render(<ScheduleView games={GAMES} tz={TZ} showPast />)
-    // The committed 2025-26 season is entirely in the past, so its months all start
-    // collapsed (the open current month holds no games). Expand one to see its days.
-    fireEvent.click(container.querySelector('.month-head'))
+    // Whether the season sits behind or ahead of "today" decides which months start
+    // collapsed, so expand any that aren't open before counting days.
+    for (const h of container.querySelectorAll('.month-head:not(.open)')) fireEvent.click(h)
     expect(container.querySelectorAll('.day').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/game/).length).toBeGreaterThan(0)
   })

@@ -8,15 +8,17 @@ import {
   webcalUrl,
 } from '../src/utils/ics.js'
 import { GAMES } from '../src/data/schedule.js'
+import { PLAYED_2526 } from './fixtures/season2526.js'
+import { HISTORY_BY_YEAR } from '../src/data/history.js'
 
 const NOW = '2026-07-20T12:00:00.000Z'
 const build = (games) => buildIcs(games, { now: NOW })
 const lines = (ics) => ics.split('\r\n')
 
-const played = GAMES.find((g) => g.score && g.venue)
-// The committed season is complete; synthesise an unplayed game (no score) from a real
-// one so the "upcoming" branch still has something to exercise.
-const upcoming = { ...played, id: 'upcoming-1', score: undefined }
+// The live schedule holds no played games right after a rollover, so the finished-game
+// branches run on frozen 2025-26 fixture rows; the unplayed branch uses the real schedule.
+const played = PLAYED_2526.find((g) => g.score && g.venue)
+const upcoming = GAMES.find((g) => !g.score && !g.postponed)
 
 describe('escapeText', () => {
   it('escapes the RFC 5545 delimiters', () => {
@@ -101,7 +103,8 @@ describe('buildIcs', () => {
   })
 
   it('marks a postponed game cancelled rather than dropping it', () => {
-    const off = GAMES.find((g) => g.postponed)
+    // A fresh schedule carries no postponements; flag a real upcoming game.
+    const off = { ...upcoming, id: 'off-1', postponed: true }
     expect(build([off])).toContain('STATUS:CANCELLED')
     expect(build([played])).not.toContain('STATUS:CANCELLED')
   })
@@ -114,10 +117,16 @@ describe('buildIcs', () => {
   it('describes a play-in game as its own round, not "Playoffs — PI"', () => {
     // Long DESCRIPTION values are folded across lines, so unfold before matching.
     const unfolded = (g) => build([g]).replace(/\r\n /g, '')
-    expect(unfolded(GAMES.find((g) => g.round === 'PI'))).toContain('Play-In Tournament')
-    expect(unfolded(GAMES.find((g) => g.round === 'PI'))).not.toContain('Playoffs — PI')
+    // Postseason rows come from the archived 2025-26 season — the live schedule has
+    // none until next spring.
+    const ARCHIVE = HISTORY_BY_YEAR[2026].games
+    expect(unfolded(ARCHIVE.find((g) => g.round === 'PI'))).toContain('Play-In Tournament')
+    expect(unfolded(ARCHIVE.find((g) => g.round === 'PI'))).not.toContain('Playoffs — PI')
     // A real playoff series still reads as one.
-    expect(unfolded(GAMES.find((g) => g.round === 'R1'))).toMatch(/Playoffs — R1 game \d/)
+    expect(unfolded(ARCHIVE.find((g) => g.round === 'R1'))).toMatch(/Playoffs — R1 game \d/)
+    // A round without a parsed game number still names the round, with no dangling "game".
+    const numberless = { ...ARCHIVE.find((g) => g.round === 'R1'), game: undefined }
+    expect(unfolded(numberless)).toMatch(/Playoffs — R1(?! game)/)
   })
 
   it('holds up over the whole season', () => {

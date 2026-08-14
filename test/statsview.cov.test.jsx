@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+
+// The leaders panels read the committed PLAYERS table, which is empty right after a
+// rollover — swap in the frozen 2025-26 top scorers so the boards render year-round.
+vi.mock('../src/data/leaders.js', async () => {
+  const { PLAYERS_2526 } = await import('./fixtures/season2526.js')
+  return { PLAYERS: PLAYERS_2526 }
+})
+
 import StatsView from '../src/components/StatsView.jsx'
-import { GAMES } from '../src/data/schedule.js'
 
 const TZ = 'America/New_York'
 
-const EAST = ['ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DET', 'IND', 'MIA', 'MIL', 'NY', 'ORL', 'PHI', 'TOR', 'WSH']
-const WEST = ['DAL', 'DEN', 'GS', 'HOU', 'LAC', 'LAL', 'MEM', 'MIN', 'NO', 'OKC', 'PHX', 'POR', 'SAC', 'SA', 'UTAH']
+import { EAST, WEST, decidedSeason } from './fixtures/decided.js'
 
 // A half-finished season: within each conference a single round-robin is played (higher
 // seed beats lower) and the return leg is left unplayed, so every team has games
@@ -41,6 +47,8 @@ const partialSeason = () => {
   return games
 }
 
+const DECIDED = decidedSeason()
+
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn()
   localStorage.clear()
@@ -48,7 +56,7 @@ beforeEach(() => {
 
 describe('StatsView coverage', () => {
   it('expands the overtime and one-possession tiles into game lists', async () => {
-    const { container } = render(<StatsView games={GAMES} tz={TZ} />)
+    const { container } = render(<StatsView games={DECIDED} tz={TZ} />)
     const tileButtons = container.querySelectorAll('.tile-btn')
     expect(tileButtons.length).toBe(2)
 
@@ -63,7 +71,10 @@ describe('StatsView coverage', () => {
     // One-possession tile → margins.
     await userEvent.click(container.querySelectorAll('.tile-btn')[1])
     drill = container.querySelector('.drill')
-    expect(within(drill).getAllByText(/^by \d+$/).length).toBeGreaterThan(0)
+    const margins = within(drill).getAllByText(/^by \d+$/).map((n) => n.textContent)
+    // Two one-possession games, listed tightest first — proves the margin sort ran.
+    expect(margins.length).toBeGreaterThanOrEqual(2)
+    expect(margins).toEqual([...margins].sort((a, b) => Number(a.slice(3)) - Number(b.slice(3))))
 
     // Clicking the open tile again collapses it (toggle back to null).
     await userEvent.click(container.querySelectorAll('.tile-btn')[1])
@@ -71,7 +82,7 @@ describe('StatsView coverage', () => {
   })
 
   it('switches the leaders category to a percentage and a count', async () => {
-    const { container } = render(<StatsView games={GAMES} tz={TZ} />)
+    const { container } = render(<StatsView games={DECIDED} tz={TZ} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'FG%' }))
     expect(screen.getByText(/League leaders — Field goal %/)).toBeInTheDocument()
@@ -92,7 +103,7 @@ describe('StatsView coverage', () => {
     const onPickTeam = vi.fn()
     const onPickPlayer = vi.fn()
     const { container } = render(
-      <StatsView games={GAMES} tz={TZ} onPickTeam={onPickTeam} onPickPlayer={onPickPlayer} />
+      <StatsView games={DECIDED} tz={TZ} onPickTeam={onPickTeam} onPickPlayer={onPickPlayer} />
     )
 
     await userEvent.click(container.querySelector('.lead-team button'))
@@ -107,14 +118,14 @@ describe('StatsView coverage', () => {
   })
 
   it('renders both positive and negative scoring margins', () => {
-    const { container } = render(<StatsView games={GAMES} tz={TZ} />)
+    const { container } = render(<StatsView games={DECIDED} tz={TZ} />)
     // A completed season has strong and weak teams → both bar polarities appear.
     expect(container.querySelector('.margin-bar.pos')).toBeInTheDocument()
     expect(container.querySelector('.margin-bar.neg')).toBeInTheDocument()
   })
 
   it('marks clinched and eliminated teams once the season is decided', () => {
-    const { container } = render(<StatsView games={GAMES} tz={TZ} />)
+    const { container } = render(<StatsView games={DECIDED} tz={TZ} />)
     const race = within(container.querySelector('.race'))
     expect(race.getAllByText('Clinched').length).toBeGreaterThan(0)
     expect(race.getAllByText('Eliminated').length).toBeGreaterThan(0)

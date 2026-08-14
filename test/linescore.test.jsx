@@ -7,15 +7,18 @@ vi.mock('../src/services/summary.js', () => ({ fetchGameSummary: () => Promise.r
 import GameDetail from '../src/components/GameDetail.jsx'
 import { livePeriod } from '../src/components/GameCard.jsx'
 import { GAMES } from '../src/data/schedule.js'
+import { PLAYED_2526 } from './fixtures/season2526.js'
 
 const TZ = 'America/New_York'
-const withLine = GAMES.find((g) => g.line && !g.ot)
+// The live schedule holds no played games after the 2026-27 rollover, so rendered
+// line scores come from the frozen 2025-26 fixture rows.
+const withLine = PLAYED_2526.find((g) => g.line && !g.ot)
 // A single-overtime game: its extra column is labelled plainly "OT". (Multi-OT games
 // number their periods OT2, OT3 — covered by the livePeriod suite below.)
-const otGame = GAMES.find((g) => g.line && g.ot === 1)
+const otGame = PLAYED_2526.find((g) => g.line && g.ot === 1)
 
 const open = (game, props = {}) =>
-  render(<GameDetail game={game} games={GAMES} tz={TZ} onClose={() => {}} {...props} />)
+  render(<GameDetail game={game} games={PLAYED_2526} tz={TZ} onClose={() => {}} {...props} />)
 
 // The line score and game leaders live under the "Scoring" tab of a played game.
 const openScoring = async (game, props = {}) => {
@@ -28,14 +31,17 @@ const openScoring = async (game, props = {}) => {
 // closest thing to a goal timeline. It has to be exactly right or it's worse than
 // showing nothing.
 describe('line score', () => {
-  it('is present for every played game in the committed data', () => {
-    const played = GAMES.filter((g) => g.score)
-    expect(played.length).toBeGreaterThan(100)
-    expect(played.every((g) => g.line)).toBe(true)
+  it('is present for every played game — committed and fixture', () => {
+    // Early in a season the committed clause is vacuous (no game has a score yet);
+    // the fixture rows keep the assertion exercised year-round.
+    expect(GAMES.filter((g) => g.score).every((g) => g.line)).toBe(true)
+    expect(PLAYED_2526.every((g) => g.line)).toBe(true)
   })
 
   it('always sums to the final score', () => {
-    for (const g of GAMES.filter((x) => x.line && x.score)) {
+    const pool = [...GAMES, ...PLAYED_2526].filter((x) => x.line && x.score)
+    expect(pool.length).toBeGreaterThan(0)
+    for (const g of pool) {
       const sum = (a) => a.reduce((x, y) => x + y, 0)
       expect([sum(g.line.home), sum(g.line.away)]).toEqual(g.score)
     }

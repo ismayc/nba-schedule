@@ -1,26 +1,38 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+
+// The scorers list reads the committed PLAYERS table — empty right after a rollover —
+// so swap in the frozen 2025-26 fixture rows (which include two New York players).
+vi.mock('../src/data/leaders.js', async () => {
+  const { PLAYERS_2526 } = await import('./fixtures/season2526.js')
+  return { PLAYERS: PLAYERS_2526 }
+})
+
 import TeamPanel from '../src/components/TeamPanel.jsx'
 import { FollowProvider } from '../src/context/follow.jsx'
 import { GAMES } from '../src/data/schedule.js'
 import { HISTORY_BY_YEAR, HISTORY } from '../src/data/history.js'
 import { playersByTeam } from '../src/utils/stats.js'
+import { PLAYED_2526 } from './fixtures/season2526.js'
+import { decidedSeason } from './fixtures/decided.js'
 
 const TZ = 'America/New_York'
-const open = (abbr = 'MIN', props = {}) =>
+// The record/form/scorers sections need PLAYED games, which the live schedule lacks
+// after a rollover — render New York over its frozen 14-game fixture pool.
+const open = (abbr = 'NY', props = {}) =>
   render(
     <FollowProvider>
-      <TeamPanel abbr={abbr} games={GAMES} tz={TZ} onClose={() => {}} {...props} />
+      <TeamPanel abbr={abbr} games={PLAYED_2526} tz={TZ} onClose={() => {}} {...props} />
     </FollowProvider>
   )
 
-// The committed season is complete, so no team has an unplayed game. Tests that need
-// the "Next up" section supply a schedule padded with a couple of future games.
+// Tests that need the "Next up" section use the real schedule padded with two games
+// pinned ahead of it in board order.
 const upcomingFor = (abbr) => [
-  ...GAMES,
   { id: `up-${abbr}-1`, tip: '2026-08-01T23:00:00.000Z', seasonType: 'regular', home: abbr, away: 'BOS' },
   { id: `up-${abbr}-2`, tip: '2026-08-03T23:00:00.000Z', seasonType: 'regular', home: 'BOS', away: abbr },
+  ...GAMES,
 ]
 
 describe('TeamPanel', () => {
@@ -30,28 +42,30 @@ describe('TeamPanel', () => {
   })
 
   it('shows the team, record, conference, and seed', () => {
-    open('MIN')
-    expect(screen.getByRole('dialog', { name: 'Minnesota Timberwolves' })).toBeInTheDocument()
-    // Verified against ESPN: Minnesota finishes 49-33, the West's 6 seed.
-    expect(screen.getByText(/49–33/)).toBeInTheDocument()
-    expect(screen.getByText(/Western Conference/)).toBeInTheDocument()
-    expect(screen.getByText(/seed 6/)).toBeInTheDocument()
+    open()
+    expect(screen.getByRole('dialog', { name: 'New York Knicks' })).toBeInTheDocument()
+    // Frozen fixture pool: New York went 9-5 over its first 14 games. Its pool
+    // opponents carry perfect 1-0/2-1 records from the same games, so by winning
+    // percentage New York sits 4th in the pool's East table.
+    expect(screen.getByText(/9–5/)).toBeInTheDocument()
+    expect(screen.getByText(/Eastern Conference/)).toBeInTheDocument()
+    expect(screen.getByText(/seed 4/)).toBeInTheDocument()
   })
 
   it('shows the six headline splits', () => {
-    const { container } = open('MIN')
+    const { container } = open()
     const labels = [...container.querySelectorAll('.tp-stat-l')].map((n) => n.textContent)
     expect(labels).toEqual(['Scored', 'Allowed', 'Net', 'Home', 'Road', 'Left'])
   })
 
   it('signs the net rating', () => {
-    const { container } = open('MIN')
+    const { container } = open()
     const net = container.querySelectorAll('.tp-stat-v')[2].textContent
     expect(net.startsWith('+')).toBe(true)
   })
 
   it('shows at most ten form chips, each won or lost', () => {
-    const { container } = open('MIN')
+    const { container } = open()
     const chips = [...container.querySelectorAll('.tp-chip')]
     expect(chips.length).toBeGreaterThan(0)
     expect(chips.length).toBeLessThanOrEqual(10)
@@ -59,12 +73,12 @@ describe('TeamPanel', () => {
   })
 
   it('hides form in spoiler-free mode', () => {
-    const { container } = open('MIN', { hideScores: true })
+    const { container } = open('NY', { hideScores: true })
     expect(container.querySelectorAll('.tp-chip')).toHaveLength(0)
   })
 
   it('lists leading scorers in descending order', () => {
-    const { container } = open('MIN')
+    const { container } = open()
     const lines = [...container.querySelectorAll('.tp-p-line')].map((n) =>
       Number(n.textContent.split(' ')[0])
     )
@@ -112,7 +126,7 @@ describe('TeamPanel', () => {
 
   it('opens a game from the form strip', async () => {
     const onOpenGame = vi.fn()
-    const { container } = open('MIN', { onOpenGame })
+    const { container } = open('NY', { onOpenGame })
     await userEvent.click(container.querySelector('.tp-chip'))
     expect(onOpenGame).toHaveBeenCalled()
     expect(onOpenGame.mock.calls[0][0]).toBeTruthy()
@@ -123,6 +137,23 @@ describe('TeamPanel', () => {
     open('MIN', { onClose })
     await userEvent.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('badges a clinched leader and an eliminated tail-ender in a decided season', () => {
+    // The frozen 2025-26 pool decides nothing; the synthetic decided season does.
+    render(
+      <FollowProvider>
+        <TeamPanel abbr="ATL" games={decidedSeason()} tz={TZ} onClose={() => {}} />
+      </FollowProvider>
+    )
+    expect(screen.getByText(/✓ clinched/)).toBeInTheDocument()
+
+    render(
+      <FollowProvider>
+        <TeamPanel abbr="WSH" games={decidedSeason()} tz={TZ} onClose={() => {}} />
+      </FollowProvider>
+    )
+    expect(screen.getByText(/✕ eliminated/)).toBeInTheDocument()
   })
 
   it('works for every team in the league', () => {

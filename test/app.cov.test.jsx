@@ -279,30 +279,8 @@ describe('team panel wiring', () => {
     )
   })
 
-  it('opens a past game from the form strip', async () => {
-    window.history.replaceState(null, '', '/?view=standings')
-    await mount()
-    await userEvent.click(document.querySelector('.team-btn'))
-    const panel = screen.getByRole('dialog')
-    const chip = panel.querySelector('.tp-chip')
-    expect(chip).toBeTruthy()
-    await userEvent.click(chip)
-    // onOpenGame closes the panel and opens that game's detail.
-    expect(await screen.findByRole('dialog', { name: 'Game detail' })).toBeInTheDocument()
-  })
-})
-
-describe('player modal wiring', () => {
-  it('opens a player from the stats leaders and closes it', async () => {
-    window.history.replaceState(null, '', '/?view=stats')
-    await mount()
-    const playerBtn = document.querySelector('.lead-player')
-    expect(playerBtn).toBeTruthy()
-    await userEvent.click(playerBtn)
-    const dialog = await screen.findByRole('dialog')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  })
+  // The form-strip and stats-leader wiring tests live in app-fixture.cov.test.jsx:
+  // both need played games/leaders, which the live schedule lacks after a rollover.
 })
 
 describe('game detail wiring', () => {

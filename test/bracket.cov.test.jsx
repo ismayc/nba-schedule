@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
-import Bracket from '../src/components/Bracket.jsx'
+import Bracket, { BracketBody } from '../src/components/Bracket.jsx'
 import { FollowProvider } from '../src/context/follow.jsx'
-import { GAMES } from '../src/data/schedule.js'
+import { HISTORY_BY_YEAR } from '../src/data/history.js'
+import { CUP_FINAL_2526 } from './fixtures/season2526.js'
 
 const TZ = 'America/New_York'
+
+// The archived 2025-26 postseason — finished, so refresh- and rollover-stable. The
+// live schedule holds no played games after the 2026-27 rollover.
+const ARCHIVE = HISTORY_BY_YEAR[2026].games
 
 beforeEach(() => {
   localStorage.clear()
@@ -12,8 +17,9 @@ beforeEach(() => {
 
 // A mid-postseason feed: the Finals' clinching game (5) is switched to in-progress, so
 // the series is live, still undecided, and has a next game to play.
-const LIVE_FEED = GAMES.map((g) =>
-  g.id === '401859967' ? { ...g, score: undefined, live: true } : g
+const CLINCHER = ARCHIVE.find((g) => g.round === 'Final' && g.game === 5)
+const LIVE_FEED = ARCHIVE.map((g) =>
+  g.id === CLINCHER.id ? { ...g, score: undefined, live: true } : g
 )
 
 describe('Bracket — live series footer', () => {
@@ -32,11 +38,9 @@ describe('Bracket — live series footer', () => {
 
 describe('Bracket — NBA Cup won by the away team, no host city', () => {
   it('names the away winner and omits the city clause', () => {
-    // Flip the committed cup result so the AWAY team (San Antonio) wins, and drop the
-    // city — the two else-branches the committed home-win-with-city footnote never hits.
-    const feed = GAMES.map((g) =>
-      g.seasonType === 'cup' ? { ...g, score: [113, 124], city: undefined } : g
-    )
+    // Flip the frozen cup result so the AWAY team (San Antonio) wins, and drop the
+    // city — the two else-branches the real home-win-with-city footnote never hits.
+    const feed = [...ARCHIVE, { ...CUP_FINAL_2526, score: [113, 124], city: undefined }]
     const { container } = render(<Bracket games={feed} tz={TZ} />)
     const cup = container.querySelector('.bx-cup')
     expect(cup).toHaveTextContent(/NBA Cup — Spurs beat Knicks 124–113/)
@@ -62,7 +66,11 @@ describe('Bracket — phone (one-round-at-a-time) layout', () => {
   })
 
   it('renders the round tabs and switches rounds', () => {
-    const { container, unmount } = render(<Bracket games={GAMES} tz={TZ} />)
+    // The archive commits postseason rows + final standings; without the standings the
+    // seed pairing is meaningless and R1 slots read incomplete (opening the wrong tab).
+    const { container, unmount } = render(
+      <BracketBody games={ARCHIVE} standings={HISTORY_BY_YEAR[2026].standings} tz={TZ} />
+    )
     expect(container.querySelector('.bx-mobile')).toBeTruthy()
 
     const tabs = screen.getAllByRole('tab')

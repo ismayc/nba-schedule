@@ -8,14 +8,18 @@ vi.mock('../src/services/summary.js', () => ({ fetchGameSummary: vi.fn() }))
 import { fetchGameSummary } from '../src/services/summary.js'
 import GameDetail from '../src/components/GameDetail.jsx'
 import { ServicesProvider } from '../src/context/services.jsx'
-import { GAMES } from '../src/data/schedule.js'
+import { PLAYED_2526, ALLSTAR_2526 } from './fixtures/season2526.js'
+
+// The live schedule holds no played (or All-Star) games after the 2026-27 rollover;
+// every rendered game here comes from the frozen 2025-26 fixture rows.
+const POOL = [...PLAYED_2526, ...ALLSTAR_2526]
 
 const TZ = 'America/New_York'
-const doubleOT = GAMES.find((g) => g.line && g.line.home.length > 5)
-const played = GAMES.find((g) => g.score && g.venue && g.broadcast?.includes('Peacock'))
+const doubleOT = POOL.find((g) => g.line && g.line.home.length > 5)
+const played = POOL.find((g) => g.score && g.venue && g.broadcast?.includes('Peacock'))
 
 const open = (game, props = {}) =>
-  render(<GameDetail game={game} games={GAMES} tz={TZ} onClose={() => {}} {...props} />)
+  render(<GameDetail game={game} games={POOL} tz={TZ} onClose={() => {}} {...props} />)
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn()
@@ -30,7 +34,7 @@ afterEach(() => {
 
 describe('GameDetail coverage', () => {
   it('returns null with no game', () => {
-    const { container } = render(<GameDetail game={null} games={GAMES} tz={TZ} onClose={() => {}} />)
+    const { container } = render(<GameDetail game={null} games={POOL} tz={TZ} onClose={() => {}} />)
     expect(container.firstChild).toBeNull()
   })
 
@@ -184,7 +188,7 @@ describe('GameDetail coverage', () => {
     localStorage.setItem('nba:services', JSON.stringify(['peacock']))
     render(
       <ServicesProvider>
-        <GameDetail game={played} games={GAMES} tz={TZ} onClose={() => {}} />
+        <GameDetail game={played} games={POOL} tz={TZ} onClose={() => {}} />
       </ServicesProvider>
     )
     const watch = document.querySelector('.md-facts .watch')
@@ -319,13 +323,13 @@ describe('GameDetail coverage', () => {
       away: 'MIA',
     }
     const { rerender } = render(
-      <GameDetail game={played} games={GAMES} tz={TZ} onClose={() => {}} />
+      <GameDetail game={played} games={POOL} tz={TZ} onClose={() => {}} />
     )
     // Move to the Scoring tab, which only exists for a played game…
     await userEvent.click(screen.getByRole('tab', { name: 'Scoring' }))
     // …then swap in an upcoming game, whose TABS have no Scoring: the render
     // before the effect resets falls back to the first tab.
-    rerender(<GameDetail game={upcoming} games={GAMES} tz={TZ} onClose={() => {}} />)
+    rerender(<GameDetail game={upcoming} games={POOL} tz={TZ} onClose={() => {}} />)
     expect(screen.queryByRole('tab', { name: 'Scoring' })).toBeNull()
     await waitFor(() =>
       expect(screen.getByRole('tab', { name: 'Matchup' })).toHaveAttribute('aria-selected', 'true')
@@ -377,7 +381,7 @@ describe('GameDetail coverage', () => {
     let resolve
     fetchGameSummary.mockReturnValue(new Promise((r) => { resolve = r }))
     const { unmount } = render(
-      <GameDetail game={played} games={GAMES} tz={TZ} onClose={() => {}} />
+      <GameDetail game={played} games={POOL} tz={TZ} onClose={() => {}} />
     )
     unmount() // aborts the in-flight request
     // Resolving now hits the aborted guard and must not throw.
@@ -389,7 +393,7 @@ describe('GameDetail coverage', () => {
 
 describe('GameDetail — All-Star', () => {
   it('drops the Matchup tab, stars the headers, and hides schedule actions', () => {
-    const allstar = GAMES.find((g) => g.seasonType === 'allstar')
+    const allstar = ALLSTAR_2526[0]
     open(allstar)
     // The drafted sides aren't in the standings, so tale-of-the-tape/series
     // don't apply — no Matchup tab, and "their schedule" doesn't exist.
@@ -410,7 +414,7 @@ describe('GameDetail — All-Star', () => {
       info: null,
       winprob: null,
     })
-    open(GAMES.find((g) => g.seasonType === 'allstar'))
+    open(ALLSTAR_2526[0])
     expect(await screen.findByRole('heading', { name: 'Injury report' })).toBeInTheDocument()
     expect(screen.getByText('Nikola Jokić')).toBeInTheDocument()
   })
