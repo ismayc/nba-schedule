@@ -4,6 +4,18 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-14
+
+- **The refresh bot no longer tries to un-roll the season.** The morning after
+  the rollover, the scheduled refresh failed its coverage gate — which was the
+  good news: its season default was a calendar heuristic (roll forward in
+  September), so in August it re-fetched the ARCHIVED 2025-26 season over the
+  committed 2026-27 data. Growth passes the shrink guard, so only the gate
+  stopped the site from reverting a whole season overnight. `fetch-schedule.mjs`
+  now defaults to the season the app is committed to (`teams.js`), the same
+  source `fetch-history.mjs` already used — the bot refreshes what the site
+  shows, and only rollovers move the target.
+
 ## 2026-08-13
 
 - **The social share card says 2026-27.** `public/og-image.png` still advertised

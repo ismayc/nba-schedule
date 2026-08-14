@@ -14,22 +14,24 @@ import { writeFile, mkdir, readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONCURRENCY, mapLimit, fetchRetry, getJson } from './lib/fetch.mjs'
+import { SEASON as COMMITTED_SEASON } from '../src/data/teams.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 const WEB = 'https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba'
 
 const args = process.argv.slice(2)
-// An NBA season is named for its ENDING year (2025-26 is season 2026). From
-// September the season of interest is the UPCOMING one (its schedule is public by
-// mid-August); before that the just-finished season is still the right target. A
-// bare calendar-year default would refresh the archived season forever once the
-// new one began each fall.
-const defaultSeason = () => {
-  const d = new Date()
-  return d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear()
-}
-const SEASON = Number(args[args.indexOf('--season') + 1]) || defaultSeason()
+// An NBA season is named for its ENDING year (2025-26 is season 2026). The default
+// is the season the app is COMMITTED to (teams.js), so the unattended refresh
+// always refreshes what the site is showing. Rollovers move teams.js explicitly —
+// by hand or via the drafted season-<label> PR — and the refresh follows.
+//
+// This replaced a calendar-date heuristic (roll forward in September) that bit the
+// morning after the 2026-08-13 rollover: the site was committed to 2026-27, the
+// August date still said 2026, and the bot re-fetched the ARCHIVED 2025-26 season —
+// growth, so the shrink guard waved it through, and only the coverage gate stopped
+// the site from reverting a whole season overnight.
+const SEASON = Number(args[args.indexOf('--season') + 1]) || COMMITTED_SEASON
 const WITH_LOGOS = !args.includes('--no-logos')
 
 // "2025-26" from the ESPN ending-year 2026.
