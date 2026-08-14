@@ -158,8 +158,12 @@ describe('live overlay from a poll', () => {
     expect(fetch.mock.calls.length).toBeGreaterThan(before)
   })
 
-  it('stays on the idle cadence when nothing is live', async () => {
+  it('stays on the idle cadence when nothing is live or imminent', async () => {
     useFake()
+    // The mocked game tips at 23:30; the shared pin (23:25) is inside its warm-up
+    // window, which now (correctly) runs the live cadence. Sit hours earlier so
+    // nothing is live OR imminent — the idle branch this test is about.
+    vi.setSystemTime(new Date('2026-03-15T20:00:00.000Z'))
     fetch.mockResolvedValue(scoreboard([])) // nothing in progress
     mount()
     await settle()

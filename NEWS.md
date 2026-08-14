@@ -6,6 +6,12 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-13
 
+- **Pre-game badge and warmed polling, at parity with the WNBA viewer.** In the
+  15 minutes before a scheduled tip the card now shows a "Pre-game" hint (ESPN
+  flips a game to live only at the actual jump, which trails the listed time by
+  the network's pre-game window), and the app polls at the 30-second live cadence
+  from that window on instead of idling at 2 minutes — so the flip to live lands
+  within one refresh. Ported from the WNBA viewer, which has had both since July.
 - **CI's concurrency group no longer lets a PR branch cancel main's runs.** The
   whole CI workflow (including `pull_request` runs) shared one static `pages`
   group, and GitHub keeps only one pending run per group, each new arrival
