@@ -14,18 +14,17 @@ import { readFile } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getJson } from './lib/fetch.mjs'
+import { SEASON as COMMITTED_SEASON } from '../src/data/teams.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 
 const args = process.argv.slice(2)
-// Same season-naming rule as fetch-schedule.mjs: seasons are named for their ending
-// year, and from September the season of interest is the upcoming one.
-const defaultSeason = () => {
-  const d = new Date()
-  return d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear()
-}
-const SEASON = Number(args[args.indexOf('--season') + 1]) || defaultSeason()
+// Same default as fetch-schedule.mjs: the season the app is committed to (teams.js),
+// so the check always audits the season the site is showing. (The old September
+// date heuristic survived here after 28de9bb fixed fetch-schedule — until September
+// it audited the ARCHIVED season against ESPN instead of the committed one.)
+const SEASON = Number(args[args.indexOf('--season') + 1]) || COMMITTED_SEASON
 const QUIET = args.includes('--quiet')
 
 // Read the committed data without a bundler. The generated file is ES module source

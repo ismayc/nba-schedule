@@ -15,11 +15,15 @@
 // `released` line from stdout rather than an exit code.
 
 import { getJson } from './lib/fetch.mjs'
+import { SEASON as COMMITTED_SEASON } from '../src/data/teams.js'
 
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 
 const args = process.argv.slice(2)
-const SEASON = Number(args[args.indexOf('--season') + 1]) || new Date().getFullYear() + 1
+// Watch for the season AFTER the committed one — calendar+1 re-detected the CURRENT
+// season between its release and the following January (harmless thanks to the
+// once-ever guards, but noisy: every daily run reported released=true).
+const SEASON = Number(args[args.indexOf('--season') + 1]) || COMMITTED_SEASON + 1
 
 // The complete INITIAL release. Since the NBA Cup era the league publishes 80 games
 // per team (1200 games) in August; the Cup knockout rounds and each team's remaining

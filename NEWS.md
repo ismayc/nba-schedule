@@ -6,6 +6,17 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-14
 
+- **Check and watch scripts caught up with the committed-season default.**
+  `check-schedule.mjs` still carried the September date heuristic after
+  `28de9bb` fixed the fetch — until September it audited the ARCHIVED season
+  against ESPN instead of the committed one; it now defaults to the teams.js
+  `SEASON` too (verified against the live feed: committed 2026-27 matches).
+  The season watch's issue/PR prose still claimed `defaultSeason()` would roll
+  the refresh over by itself in September — no longer true — and now says the
+  rollover PR is what moves the site. The watch also targets the season
+  after the COMMITTED one now (calendar+1 kept re-detecting the current
+  season all fall — harmless behind the once-ever guards, but noisy).
+
 - **The refresh bot no longer tries to un-roll the season.** The morning after
   the rollover, the scheduled refresh failed its coverage gate — which was the
   good news: its season default was a calendar heuristic (roll forward in

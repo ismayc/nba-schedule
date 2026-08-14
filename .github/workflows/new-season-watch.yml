@@ -1,8 +1,8 @@
 name: New season watch
 
-# The NBA posts the next season's schedule in mid-August, weeks before this app rolls over
-# to it (fetch-schedule's defaultSeason() only switches in September). This watches for the
-# day it lands, opens an issue, and drafts the rollover PR — so the rollover is a decision
+# The NBA posts the next season's schedule in mid-August. Nothing rolls over on its own —
+# the refresh follows the committed teams.js season — so this watches for the day the new
+# schedule lands, opens an issue, and drafts the rollover PR: the rollover is a decision
 # rather than a discovery, and the fetching is already done when you make it.
 #
 # It lives here rather than in a scheduled cloud agent because ESPN's API is not reachable
@@ -90,8 +90,9 @@ jobs:
              games, standings and leaders — and updating them is the annual rollover chore,
              not a regression.
 
-          \`defaultSeason()\` in \`scripts/fetch-schedule.mjs\` switches on its own from
-          September, so the twice-daily refresh picks the new season up then regardless.
+          The refresh follows the committed season in \`src/data/teams.js\` (since
+          28de9bb), so nothing switches on its own — merging the rollover PR is what
+          moves the site (and the refresh bot) to the new season.
           EOF
           gh issue create --title "$TITLE" --body-file /tmp/issue-body.md
 
@@ -160,9 +161,9 @@ jobs:
           GitHub does not trigger workflows on those pushes. Your first commit to
           \`$BRANCH\` starts CI.
 
-          Nothing is urgent. \`defaultSeason()\` switches on its own from September, so the
-          twice-daily refresh would pick the new season up then regardless — this branch
-          just gets the retuning done before it does.
+          Nothing is urgent — but nothing switches on its own either: the refresh
+          follows the committed \`teams.js\` season (since 28de9bb), so the site stays
+          on the finished season until this PR merges.
           EOF
           gh pr create --draft --base main --head "$BRANCH" \
             --title "Roll the viewer over to the $SEASON season" --body-file /tmp/pr-body.md
