@@ -8,9 +8,12 @@ data/source updates, deployment). Newest day on top.
 
 - **The social share card says 2026-27.** `public/og-image.png` still advertised
   2025-26; it now carries the new season, the emoji-basketball mark from the
-  family icon recipe, and the same nine team logos. It is generated
-  deterministically by `scripts/make-og-image.py` (see
-  `scripts/make-og-image.md`) — update the season string there at each rollover.
+  family icon recipe, and the nine teams most likely to win the title in odds
+  order (OKC and San Antonio +270 co-favorites, the champion Knicks and
+  LeBron's 76ers +900, Boston 13-1, then the 25-1 group — Cleveland, Detroit,
+  Denver, Minnesota). Generated deterministically by
+  `scripts/make-og-image.py` (see `scripts/make-og-image.md`) — refresh the
+  season string and the contenders at each rollover.
 - **Pre-game badge and warmed polling, at parity with the WNBA viewer.** In the
   15 minutes before a scheduled tip the card now shows a "Pre-game" hint (ESPN
   flips a game to live only at the actual jump, which trails the listed time by

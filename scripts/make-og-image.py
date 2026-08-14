@@ -71,8 +71,11 @@ f_tag = font(30, bold=False)
 d.text((PAD, my + ms + 34), 'Every game in your timezone — live scores, standings, the play-in,', font=f_tag, fill=MUTED)
 d.text((PAD, my + ms + 74), 'and the playoff bracket.', font=f_tag, fill=MUTED)
 
-# Logos row.
-teams = ['bos', 'ny', 'phi', 'mia', 'chi', 'lal', 'gs', 'den', 'okc']
+# Logos row: the nine teams most likely to win the title, in odds order —
+# 2026-27 futures as of 2026-08-13 (ESPN): OKC +270, SA +270, NY +900, PHI +900,
+# BOS 13-1, then the 25-1 group (CLE, DET, DEN, MIN — Denver over Toronto within
+# the tied tier, Chester's call). Refresh with the season string at each rollover.
+teams = ['okc', 'sa', 'ny', 'phi', 'bos', 'cle', 'det', 'den', 'min']
 ls, gap = 92, 30
 lx, ly = PAD, 330
 for t in teams:
