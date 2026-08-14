@@ -209,6 +209,30 @@ describe('ScheduleView', () => {
     expect(screen.getByText(/No games match/i)).toBeInTheDocument()
   })
 
+  it('caps the default view at a fortnight of upcoming game-days behind a Later toggle', async () => {
+    // 20 future game-days, two games each — the default view must show the first 14
+    // days and fold the remaining 6 (12 games) behind "Later games". Without the cap
+    // a fresh rollover renders the whole 1,200-game season on load.
+    const base = Date.now()
+    const wk = []
+    for (let d = 1; d <= 20; d++) {
+      const tip = new Date(base + d * 24 * 60 * 60 * 1000).toISOString()
+      wk.push({ id: `f${d}a`, seasonType: 'regular', tip, home: 'NY', away: 'BOS' })
+      wk.push({ id: `f${d}b`, seasonType: 'regular', tip, home: 'MIA', away: 'CHI' })
+    }
+    const { container } = render(<ScheduleView games={wk} tz={TZ} />)
+    expect(container.querySelectorAll('.day')).toHaveLength(14)
+
+    const later = screen.getByRole('button', { name: /Later games/ })
+    expect(within(later).getByText('12')).toBeInTheDocument()
+    fireEvent.click(later)
+    expect(container.querySelectorAll('.day')).toHaveLength(20)
+
+    // The toggle flips to a collapse control and folds the tail back away.
+    fireEvent.click(screen.getByRole('button', { name: /Later games/ }))
+    expect(container.querySelectorAll('.day')).toHaveLength(14)
+  })
+
   // Past days are dropped whole rather than by tip-off time, so a game earlier
   // today still counts as today.
   describe('recent window and full season', () => {

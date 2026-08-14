@@ -21,6 +21,14 @@ data/source updates, deployment). Newest day on top.
   The Cup knockout rounds and ~30 remaining regular-season games are added by
   the NBA in December and will arrive via the data refresh. The 2025-26 season
   (champion NY) was already archived in History.
+- **The default schedule now folds the far future behind "Later games".** With a
+  freshly-released season nothing is in the past, so the default view was
+  rendering all 1,200 games on load — heavy on a phone, and slow enough to time
+  out CI's app tests. It now shows the last week of results plus the next
+  fortnight of game-days, with the rest behind a "Later games" toggle that
+  mirrors "Earlier games" (count badge included). Counted in game-days, so a
+  pre-season landing shows the fortnight around opening night rather than an
+  empty window.
 - **The test suite is retuned to survive rollovers.** 105 tests pinned the played
   2025-26 season and broke the moment the live schedule became all-unplayed. Tests
   that need a finished postseason now read the ARCHIVED 2025-26 season (the same
