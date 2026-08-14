@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { GAMES } from '../src/data/schedule.js'
 import { PLAYERS } from '../src/data/leaders.js'
+import { TEAMS } from '../src/data/teams.js'
 import {
   seasonTotals,
   teamScoring,
@@ -229,7 +230,16 @@ describe('teamLabel', () => {
 })
 
 describe('the committed player table', () => {
+  // Right after a rollover the table is legitimately EMPTY (no games → no stats), and
+  // it refills as the season is played. Assert what must hold in either state: an
+  // empty table yields empty boards (not wrong ones), a populated one yields full ones.
   it('has qualified players with the stats the leaderboards use', () => {
+    if (PLAYERS.length === 0) {
+      for (const key of ['avgPoints', 'avgRebounds', 'avgAssists']) {
+        expect(leaderboard(key, { limit: 5 })).toHaveLength(0)
+      }
+      return
+    }
     expect(PLAYERS.length).toBeGreaterThan(50)
     for (const key of ['avgPoints', 'avgRebounds', 'avgAssists']) {
       expect(leaderboard(key, { limit: 5 }).length).toBeGreaterThanOrEqual(5)
@@ -237,9 +247,12 @@ describe('the committed player table', () => {
   })
 
   it('assigns every player to a real team', () => {
-    const teams = new Set(PLAYERS.map((p) => p.team))
-    expect(teams.size).toBe(30)
-    expect(playersByTeam('MIN').length).toBeGreaterThan(0)
+    const abbrs = new Set(TEAMS.map((t) => t.abbr))
+    for (const p of PLAYERS) expect(abbrs.has(p.team)).toBe(true)
+    if (PLAYERS.length > 0) {
+      expect(new Set(PLAYERS.map((p) => p.team)).size).toBe(30)
+      expect(playersByTeam('MIN').length).toBeGreaterThan(0)
+    }
   })
 
   it('sorts a team roster by scoring', () => {

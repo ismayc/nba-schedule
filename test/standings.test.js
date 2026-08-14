@@ -15,6 +15,7 @@ import {
   PLAYOFF_SPOTS,
 } from '../src/utils/standings.js'
 import { TEAMS } from '../src/data/teams.js'
+import { HISTORY_BY_YEAR } from '../src/data/history.js'
 
 let seq = 0
 const game = (over) => ({
@@ -479,9 +480,11 @@ describe('per-conference seeding', () => {
   })
 
   it('lets a conference lead its own field regardless of the other conference', () => {
-    // A West team can hold the best record in the league without touching East seeding:
-    // Oklahoma City tops the West, Detroit tops the East, each seeded #1 in its own group.
-    const { E, W } = conferenceStandings(GAMES)
+    // A West team can hold the best record in the league without touching East seeding.
+    // The live schedule is unplayed right after a rollover, so this reads the ARCHIVED
+    // 2025-26 standings: Oklahoma City topped the West outright, Detroit the East,
+    // each seeded #1 in its own group.
+    const { E, W } = HISTORY_BY_YEAR[2026].standings
     expect(W[0]).toMatchObject({ abbr: 'OKC', seed: 1, gb: 0 })
     expect(E[0]).toMatchObject({ abbr: 'DET', seed: 1, gb: 0 })
     expect(W[0].w).toBeGreaterThan(E[0].w) // OKC has more wins but East seeds off DET
@@ -506,10 +509,11 @@ describe('per-conference seeding', () => {
 
 // The real 2025-26 data is the strongest fixture there is: these numbers can be checked
 // against ESPN's published conference standings.
-describe('the committed 2025-26 season', () => {
-  const { E, W } = conferenceStandings(GAMES)
-
+describe('the archived 2025-26 season and the live race', () => {
   it('matches ESPN: Oklahoma City tops the West and Detroit tops the East', () => {
+    // Frozen in the archive — a finished season's numbers can always be checked
+    // against ESPN's published conference standings.
+    const { E, W } = HISTORY_BY_YEAR[2026].standings
     expect(W[0]).toMatchObject({ abbr: 'OKC', w: 64, l: 18 })
     expect(E[0]).toMatchObject({ abbr: 'DET', w: 60, l: 22 })
   })
@@ -526,13 +530,15 @@ describe('the committed 2025-26 season', () => {
   })
 
   it('runs the clinch/eliminate race inside each conference', () => {
+    // Structural only: naming who is clinched/eliminated would pin moving season
+    // data (the decided-season shapes are locked by the raceScenarios fixtures).
     const race = playoffRace(GAMES)
     expect(race).toHaveLength(TEAMS.length)
     expect(race.filter((r) => r.playIn)).toHaveLength(8) // 4 per conference
-    // A full completed season resolves every seed.
-    const det = race.find((r) => r.abbr === 'DET')
-    const wsh = race.find((r) => r.abbr === 'WSH')
-    expect(det).toMatchObject({ conf: 'E', clinched: true, eliminated: false })
-    expect(wsh).toMatchObject({ conf: 'E', clinched: false, eliminated: true })
+    for (const r of race) {
+      expect(['E', 'W']).toContain(r.conf)
+      // No team can be both safe and out.
+      expect(r.clinched && r.eliminated).toBe(false)
+    }
   })
 })

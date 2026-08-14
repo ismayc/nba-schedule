@@ -165,6 +165,19 @@ describe('App', () => {
   })
 
   describe('past days', () => {
+    // The "earlier games" control only exists when schedule days sit behind the
+    // recent window — which is never true in the run-up to a new season (today is
+    // before opening night). Pin the clock to a mid-season date derived from the
+    // committed games so these tests work whatever the real date is.
+    beforeEach(() => {
+      const mid = new Date(GAMES[Math.floor(GAMES.length / 2)].tip)
+      vi.useFakeTimers({ now: mid, shouldAdvanceTime: true })
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
     it('switches to the month-grouped full season on click', async () => {
       await mount()
       // Recent view: a flat list, no month navigation.
@@ -259,12 +272,16 @@ describe('App', () => {
   })
 
   describe('the live overlay', () => {
-    // The committed data is a finished season, so the app deliberately never polls: the
-    // overlay only exists to merge in-progress scores, and there are none.
-    it('stays idle once the season is complete', async () => {
+    // The app polls only while the committed season is unfinished — never once it is
+    // over. Which side of that line the data sits on moves with the season (a fresh
+    // rollover is all unplayed; June–August before one is all played), so derive the
+    // expectation from the same completeness the app computes.
+    it('polls while the season is unfinished, and only then', async () => {
+      const over = GAMES.every((g) => (g.score && !g.live) || g.postponed || g.canceled)
       await mount()
       await act(async () => {})
-      expect(fetch).not.toHaveBeenCalled()
+      if (over) expect(fetch).not.toHaveBeenCalled()
+      else expect(fetch).toHaveBeenCalled()
     })
 
     it('still renders the committed season without any live feed', async () => {
@@ -280,11 +297,13 @@ describe('App', () => {
     it('opens from the standings and can be dismissed', async () => {
       window.history.replaceState(null, '', '/?view=standings')
       await mount()
-      await userEvent.click(document.querySelector('.team-btn'))
+      const btn = document.querySelector('.team-btn')
+      const teamName = btn.textContent.trim()
+      await userEvent.click(btn)
       const panel = screen.getByRole('dialog')
-      // The panel has several heading levels; the team name is the h3. Detroit is the
-      // East #1 seed, so it's the first team button in the standings.
-      expect(within(panel).getByRole('heading', { level: 3 })).toHaveTextContent(/Pistons/)
+      // The panel has several heading levels; the team name is the h3 — whichever
+      // team currently tops the East, the panel must be about the team clicked.
+      expect(within(panel).getByRole('heading', { level: 3 }).textContent).toContain(teamName)
 
       await userEvent.click(within(panel).getByRole('button', { name: 'Close' }))
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -382,52 +401,8 @@ describe('filter panel', () => {
     expect(screen.getByLabelText('Search games')).toBeInTheDocument()
   })
 
-  // The phase chips share their labels with the nav (🏆 Playoffs), so scope queries
-  // to the chip row.
-  const phaseChip = (name) =>
-    within(document.querySelector('.phase-chips')).getByRole('button', { name })
-
-  it('narrows the schedule to a chosen phase and back', async () => {
-    await mount()
-    const all = document.querySelectorAll('.game').length
-    expect(all).toBeGreaterThan(0)
-    await userEvent.click(toggle())
-
-    // The lone Cup game isn't in the recent window, so filtering to Cup hides every
-    // game currently shown (exercising both the keep and drop paths of the filter).
-    const cup = phaseChip('🏅 Cup')
-    await userEvent.click(cup)
-    expect(cup).toHaveAttribute('aria-pressed', 'true')
-    expect(document.querySelectorAll('.game').length).toBeLessThan(all)
-
-    // Deselecting restores the full list (empty phases = all).
-    await userEvent.click(cup)
-    expect(cup).toHaveAttribute('aria-pressed', 'false')
-    expect(document.querySelectorAll('.game').length).toBe(all)
-  })
-
-  it('offers a Play-In chip that isolates the six play-in games', async () => {
-    await mount()
-    await userEvent.click(toggle())
-    // The play-in is months in the past, so open the full season and expand it.
-    await userEvent.click(screen.getByRole('button', { name: /earlier games/i }))
-    await userEvent.click(phaseChip('⚡ Play-In'))
-    expandMonths()
-    expect(document.querySelectorAll('.game')).toHaveLength(
-      GAMES.filter((g) => g.seasonType === 'playin').length
-    )
-  })
-
-  it('counts an active phase filter on the badge and Clear all resets it', async () => {
-    await mount()
-    await userEvent.click(toggle())
-    await userEvent.click(phaseChip('🏆 Playoffs'))
-    expect(within(toggle()).getByText('1')).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }))
-    expect(phaseChip('🏆 Playoffs')).toHaveAttribute('aria-pressed', 'false')
-    expect(within(toggle()).queryByText('1')).not.toBeInTheDocument()
-  })
+  // The phase-chip tests live in app-fixture.cov.test.jsx: chips are data-driven and
+  // the live schedule holds only regular-season games right after a rollover.
 })
 
 describe('game deep link', () => {

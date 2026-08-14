@@ -7,15 +7,18 @@ import { GAMES } from '../src/data/schedule.js'
 const TZ = 'America/New_York'
 const open = (props = {}) => render(<WeekView games={GAMES} tz={TZ} {...props} />)
 
-// "Today" (mid-2026) sits in the offseason after the committed 2025-26 schedule, so the
-// view opens on an empty week where only Previous is live. Walk back until a week with
-// games appears — the last week of the season — to exercise navigation from inside it.
+// The runner's "today" can sit anywhere relative to the committed season: before it
+// (a fresh rollover, like 2026-27 in August), inside it, or after it (the offseason).
+// Walk toward the season — forward if it starts in the future, back otherwise — until
+// a week with games appears, to exercise navigation from inside it.
 const stepIntoSeason = async () => {
+  const seasonAhead = new Date(GAMES[0].tip) > new Date()
+  const control = seasonAhead ? 'Next week' : 'Previous week'
   for (let i = 0; i < 60; i++) {
     if (document.querySelector('.wk-game')) return
-    const prev = screen.getByLabelText('Previous week')
-    if (prev.disabled) return
-    await userEvent.click(prev)
+    const btn = screen.getByLabelText(control)
+    if (btn.disabled) return
+    await userEvent.click(btn)
   }
 }
 
@@ -36,13 +39,17 @@ describe('WeekView', () => {
     const { container } = open()
     const label = () => container.querySelector('.sub').textContent
 
-    // Step into the season first, where both directions are live.
+    // Step into the season first. At a season edge one direction is disabled (the
+    // walker lands on the first week when the season is ahead of "today"), so
+    // navigate with whichever control is live and come back with its opposite.
     await stepIntoSeason()
     const start = label()
-    await userEvent.click(screen.getByLabelText('Previous week'))
+    const prev = screen.getByLabelText('Previous week')
+    const [out, back] = prev.disabled ? ['Next week', 'Previous week'] : ['Previous week', 'Next week']
+    await userEvent.click(screen.getByLabelText(out))
     expect(label()).not.toBe(start)
 
-    await userEvent.click(screen.getByLabelText('Next week'))
+    await userEvent.click(screen.getByLabelText(back))
     expect(label()).toBe(start)
   })
 
@@ -73,15 +80,35 @@ describe('WeekView', () => {
     expect(container.querySelectorAll('.wk-game')).toHaveLength(stated)
   })
 
-  it('shows tip time for unplayed games and scores for finished ones', () => {
-    const { container } = open()
-    const cards = container.querySelectorAll('.wk-game')
+  it('shows tip time for unplayed games and scores for finished ones', async () => {
+    // The live schedule has no finished games after a rollover, so build one week
+    // holding a home win, an away win, and an unplayed game — all three arms.
+    const monday = '2026-02-02'
+    const wk = [
+      { id: 'w1', seasonType: 'regular', tip: `${monday}T00:00:00.000Z`, home: 'NY', away: 'BOS', score: [100, 90] },
+      { id: 'w2', seasonType: 'regular', tip: '2026-02-03T00:00:00.000Z', home: 'MIA', away: 'CHI', score: [80, 95] },
+      { id: 'w3', seasonType: 'regular', tip: '2026-02-04T00:00:00.000Z', home: 'ATL', away: 'DET' },
+    ]
+    const { container } = render(<WeekView games={wk} tz={TZ} />)
+    // These three games sit in the past relative to any post-rollover "today", so
+    // walk back to their week (stepIntoSeason derives its direction from the real
+    // schedule, not this synthetic one).
+    for (let i = 0; i < 60 && !container.querySelector('.wk-game'); i++) {
+      const prev = screen.getByLabelText('Previous week')
+      if (prev.disabled) break
+      await userEvent.click(prev)
+    }
+    const cards = [...container.querySelectorAll('.wk-game')]
+    expect(cards).toHaveLength(3)
     for (const c of cards) {
       const hasTime = !!c.querySelector('.wk-time')
       const hasPts = !!c.querySelector('.wk-pts')
       // Exactly one of the two — never both, never neither.
       expect(hasTime !== hasPts).toBe(true)
     }
+    // The winner's points are marked in both orientations — home win and away win.
+    const winners = cards.map((c) => c.querySelector('.wk-pts.won')?.textContent ?? null)
+    expect(winners).toEqual(['100', '95', null])
   })
 
   it('hides scores in spoiler-free mode', () => {

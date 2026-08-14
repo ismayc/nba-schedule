@@ -11,9 +11,16 @@ import {
   R1_PAIRS,
 } from '../src/utils/bracket.js'
 import { countsForStandings, CONFERENCE_BY_ABBR } from '../src/utils/standings.js'
+import { HISTORY_BY_YEAR } from '../src/data/history.js'
 
-// The committed 2025-26 schedule now carries a finished postseason, so the real bracket
-// is the best test of the engine. Everything below the play-in resolves from those games.
+// The ARCHIVED 2025-26 season carries a finished real postseason, so it is the best
+// test of the engine — and being finished, it never moves under a refresh or a
+// rollover the way the live GAMES do. The live schedule (all unplayed after the
+// 2026-27 rollover) exercises the projection path below.
+const ARCHIVE = HISTORY_BY_YEAR[2026].games
+// The archive commits only postseason rows, so seeds come from its committed final
+// standings — the same pair HistoryView hands to BracketBody.
+const STANDINGS = HISTORY_BY_YEAR[2026].standings
 const REGULAR = GAMES.filter((g) => g.seasonType !== 'playoffs')
 
 // A synthetic set of best-of-7 series lets us pin the series engine down exactly —
@@ -94,7 +101,7 @@ describe('an in-progress series', () => {
 // The finished 2025-26 postseason, as committed: New York won the East, San Antonio the
 // West, and New York took the Finals 4-1.
 describe('the finished 2025-26 postseason', () => {
-  const b = buildBracket(GAMES)
+  const b = buildBracket(ARCHIVE, STANDINGS)
 
   it('is not projected and names the champion', () => {
     expect(b.projected).toBe(false)
@@ -162,7 +169,7 @@ describe('projection before the postseason exists', () => {
 // 7 and 8 seeds the committed first round actually used. That ties the new data to
 // something already verified rather than restating the same feed twice.
 describe('the 2025-26 play-in tournament', () => {
-  const pi = buildPlayIn(GAMES)
+  const pi = buildPlayIn(ARCHIVE)
 
   it('reads all six games, three per conference', () => {
     expect(pi.E.games).toHaveLength(3)
@@ -185,7 +192,7 @@ describe('the 2025-26 play-in tournament', () => {
 
     // Cross-check against the real bracket: the 7 and 8 seeds of each conference's
     // first round must be exactly the teams the play-in sent through.
-    const b = buildBracket(GAMES)
+    const b = buildBracket(ARCHIVE, STANDINGS)
     for (const conf of ['E', 'W']) {
       const oneVsEight = b.conferences[conf].r1[0] // 1v8
       const twoVsSeven = b.conferences[conf].r1[2] // 2v7
@@ -210,19 +217,19 @@ describe('the 2025-26 play-in tournament', () => {
   })
 
   it('keeps play-in games out of the regular-season standings', () => {
-    for (const g of GAMES.filter((x) => x.seasonType === 'playin')) {
+    for (const g of ARCHIVE.filter((x) => x.seasonType === 'playin')) {
       expect(countsForStandings(g)).toBe(false)
     }
   })
 })
 
 describe('a play-in that has not finished', () => {
-  const east = GAMES.filter(
+  const east = ARCHIVE.filter(
     (g) => g.seasonType === 'playin' && CONFERENCE_BY_ABBR[g.home] === 'E'
   )
 
   it('has no seeds and no ladder at all before the games exist', () => {
-    const pi = buildPlayIn(GAMES.filter((g) => g.seasonType !== 'playin'))
+    const pi = buildPlayIn(ARCHIVE.filter((g) => g.seasonType !== 'playin'))
     expect(pi.E.played).toBe(false)
     expect(pi.E.games).toEqual([])
     expect(pi.E.seeds).toEqual({})

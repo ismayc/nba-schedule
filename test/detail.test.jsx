@@ -6,19 +6,20 @@ import userEvent from '@testing-library/user-event'
 vi.mock('../src/services/summary.js', () => ({ fetchGameSummary: () => Promise.resolve(null) }))
 import GameDetail from '../src/components/GameDetail.jsx'
 import { GAMES } from '../src/data/schedule.js'
+import { PLAYED_2526 } from './fixtures/season2526.js'
 
 const TZ = 'America/New_York'
-const played = GAMES.find((g) => g.score && g.venue && g.broadcast)
-// The committed season is complete, so there is no unplayed game to borrow — synthesise
-// one by stripping the result off a real game, keeping its (valid) NBA matchup.
-const upcoming = { ...played, id: 'upcoming-1', score: undefined, ot: undefined, line: undefined }
+// The live schedule holds no played games after the 2026-27 rollover, so played-game
+// renders use the frozen 2025-26 fixture rows; the unplayed path uses the real schedule.
+const played = PLAYED_2526.find((g) => g.score && g.venue && g.broadcast)
+const upcoming = GAMES.find((g) => !g.score && !g.postponed && g.venue && g.broadcast)
 
 const open = (game, props = {}) =>
-  render(<GameDetail game={game} games={GAMES} tz={TZ} onClose={() => {}} {...props} />)
+  render(<GameDetail game={game} games={PLAYED_2526} tz={TZ} onClose={() => {}} {...props} />)
 
 describe('GameDetail', () => {
   it('renders nothing without a game', () => {
-    const { container } = render(<GameDetail game={null} games={GAMES} tz={TZ} />)
+    const { container } = render(<GameDetail game={null} games={PLAYED_2526} tz={TZ} />)
     expect(container).toBeEmptyDOMElement()
   })
 
@@ -111,16 +112,17 @@ describe('GameDetail', () => {
   })
 
   it('lists the season series when the teams have met', async () => {
-    // Find a matchup that has been played more than once.
+    // Find a matchup that has been played more than once (the fixture carries New
+    // York vs Miami three times for exactly this).
     const counts = {}
-    for (const g of GAMES) {
+    for (const g of PLAYED_2526) {
       if (!g.score) continue
       const k = [g.home, g.away].sort().join('|')
       counts[k] = (counts[k] || 0) + 1
     }
     const repeated = Object.entries(counts).find(([, n]) => n > 1)?.[0]
     const [a, b] = repeated.split('|')
-    const game = GAMES.find(
+    const game = PLAYED_2526.find(
       (g) => g.score && [g.home, g.away].includes(a) && [g.home, g.away].includes(b)
     )
     open(game)

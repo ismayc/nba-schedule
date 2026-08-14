@@ -20,6 +20,32 @@ data/source updates, deployment). Newest day on top.
   before their deploy could start. CI now groups per ref, refresh-data got its
   own group, and the only genuinely shared lock — the Pages deploy — moved to a
   job-level `pages` group on both deploy jobs.
+- **2026-27 season rollover (draft).** The NBA released the 2026-27 schedule
+  today; this branch commits the initial 1200-game release (opening night
+  2026-10-20 BOS @ DET, finale 2027-04-11 PHX @ LAL), including 60 NBA Cup
+  group-play games and the Paris, Mexico City, and Manchester internationals.
+  The Cup knockout rounds and ~30 remaining regular-season games are added by
+  the NBA in December and will arrive via the data refresh. The 2025-26 season
+  (champion NY) was already archived in History.
+- **The default schedule now folds the far future behind "Later games".** With a
+  freshly-released season nothing is in the past, so the default view was
+  rendering all 1,200 games on load — heavy on a phone, and slow enough to time
+  out CI's app tests. It now shows the last week of results plus the next
+  fortnight of game-days, with the rest behind a "Later games" toggle that
+  mirrors "Earlier games" (count badge included). Counted in game-days, so a
+  pre-season landing shows the fortnight around opening night rather than an
+  empty window.
+- **The test suite is retuned to survive rollovers.** 105 tests pinned the played
+  2025-26 season and broke the moment the live schedule became all-unplayed. Tests
+  that need a finished postseason now read the ARCHIVED 2025-26 season (the same
+  rows HistoryView renders); tests that need played games, line scores, star
+  performers, All-Star games or the Cup final use frozen real 2025-26 rows in
+  `test/fixtures/season2526.js`; clinch/eliminated states, resolved bracket wheels
+  and stat tiles run on a synthetic decided season (`test/fixtures/decided.js`);
+  and season-state-dependent app tests (poll-vs-idle, When filter, past days)
+  derive their expectations from the data or pin a mid-season clock. 672 tests,
+  100% coverage on all four metrics — and next August's rollover should need no
+  retune at all.
 - **The season watch missed the release — detector fixed.** The 2026-27
   schedule dropped today and every watch run (including the release-day burst)
   reported "not yet": the check read `ev.seasonType?.id` — which does not exist

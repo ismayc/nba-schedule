@@ -20,11 +20,12 @@ const open = (abbr, games, props = {}) =>
 
 describe('TeamPanel — live "Next up" and backdrop paths', () => {
   it('labels an in-progress upcoming game as Live', () => {
-    // The committed season is complete, so append an unplayed, in-progress game to give
-    // "Next up" a live entry (liveState → 'live').
+    // Give "Next up" a live entry (liveState → 'live'). It must lead the board: the
+    // list takes the team's first five unscored games in board order, and the live
+    // schedule now carries a full season of unplayed games behind it.
     const games = [
-      ...GAMES,
       { id: 'min-live', seasonType: 'regular', tip: '2026-09-01T00:00:00.000Z', home: 'MIN', away: 'LAL', live: true },
+      ...GAMES,
     ]
     open('MIN', games)
     expect(screen.getByText('Next up')).toBeInTheDocument()

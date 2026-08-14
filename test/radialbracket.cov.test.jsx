@@ -4,9 +4,14 @@ import userEvent from '@testing-library/user-event'
 import RadialBracket from '../src/components/RadialBracket.jsx'
 import { FollowProvider } from '../src/context/follow.jsx'
 import { GAMES } from '../src/data/schedule.js'
+import { decidedSeason, alignedPlayoffs, EAST } from './fixtures/decided.js'
 
-// Regular season only → the inner-round nodes have no winners yet (the projected/empty
-// paths). The full GAMES feed resolves every round (the winner paths).
+// The live (post-rollover, unplayed) schedule → the inner-round nodes have no winners
+// yet (the projected/empty paths). The winner paths need a postseason whose series
+// MATCH the seeding (the wheel pairs series to seeds) — the archived real postseason
+// alone can't provide that, because without its regular season the standings are all
+// 0-0 and no r1 slot resolves. The synthetic decided season + aligned playoffs do.
+const RESOLVED = [...decidedSeason(), ...alignedPlayoffs()]
 const REGULAR = GAMES.filter((g) => g.seasonType !== 'playoffs')
 
 beforeEach(() => {
@@ -15,11 +20,11 @@ beforeEach(() => {
 
 describe('RadialBracket — hover, click, and follow interactions', () => {
   it('dims other nodes on hover from every ring, clears on leave, and routes a click', async () => {
-    localStorage.setItem('nba:followed', JSON.stringify(['NY']))
+    localStorage.setItem('nba:followed', JSON.stringify([EAST[0]]))
     const onPick = vi.fn()
     const { container } = render(
       <FollowProvider>
-        <RadialBracket games={GAMES} onPick={onPick} />
+        <RadialBracket games={RESOLVED} onPick={onPick} />
       </FollowProvider>
     )
 
