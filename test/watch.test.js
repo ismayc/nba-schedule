@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   watchableServices,
   broadcastNotBadged,
+  localChannelCatalog,
   SERVICE_CATALOG,
   SERVICE_BY_KEY,
+  LOCAL_CATALOG,
 } from '../src/utils/watch.js'
 
 const labels = (b, keys) => watchableServices(b, keys).map((s) => s.label)
@@ -84,5 +86,43 @@ describe('broadcastNotBadged', () => {
   it('returns the whole list when nothing is badged', () => {
     expect(broadcastNotBadged(['ESPN', 'ABC'], [])).toEqual(['ESPN', 'ABC'])
     expect(broadcastNotBadged(undefined, [])).toEqual([])
+  })
+})
+
+describe('localChannelCatalog', () => {
+  const g = (home, away, ...broadcast) => ({ home, away, broadcast })
+
+  it('collects the distinct non-national feeds as picker entries, attributed to their team', () => {
+    const cat = localChannelCatalog([
+      g('AAA', 'BBB', 'ESPN', 'Local One'),
+      g('CCC', 'AAA', 'Local Two', 'Local One'), // duplicate feed collapses; AAA survives the intersection
+      g('DDD', 'EEE', 'ESPN'), // national only — contributes nothing
+      { id: 'nobroadcast', home: 'FFF', away: 'GGG' }, // games without a broadcast list are tolerated
+    ])
+    // Local One airs two games whose only common team is AAA. Local Two airs once,
+    // leaving BOTH that game's teams as candidates — no single team, so it's
+    // unattributed and sorts after the attributed entry.
+    expect(cat.map((c) => [c.label, c.team])).toEqual([
+      ['Local One', 'AAA'],
+      ['Local Two', null],
+    ])
+    expect(cat[0]).toMatchObject({ key: 'local:Local One', kind: 'local' })
+    expect(cat[0].match(['Local One'])).toBe(true)
+    expect(cat[0].match(['ESPN'])).toBe(false)
+  })
+
+  it('sorts unattributed feeds after attributed ones, alphabetically among themselves', () => {
+    const cat = localChannelCatalog([
+      g('AAA', 'BBB', 'Pinned TV'),
+      g('CCC', 'AAA', 'Pinned TV'), // pinned to AAA
+      g('DDD', 'EEE', 'Zed TV'), // one game each → unattributed
+      g('FFF', 'GGG', 'Alpha TV'),
+    ])
+    expect(cat.map((c) => c.label)).toEqual(['Pinned TV', 'Alpha TV', 'Zed TV'])
+  })
+
+  it('is empty for a fully national slate — which is this league today, so the picker hides it', () => {
+    expect(localChannelCatalog([g('AAA', 'BBB', 'ESPN')])).toEqual([])
+    expect(LOCAL_CATALOG).toEqual([])
   })
 })
