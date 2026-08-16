@@ -17,7 +17,9 @@
 import { getJson } from './lib/fetch.mjs'
 import { SEASON as COMMITTED_SEASON } from '../src/data/teams.js'
 
-const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
+// site.web.api, not site.api — the latter 403s every request from a cloud IP.
+// See the note in scripts/fetch-schedule.mjs.
+const SITE = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba'
 
 const args = process.argv.slice(2)
 // Watch for the season AFTER the committed one — calendar+1 re-detected the CURRENT

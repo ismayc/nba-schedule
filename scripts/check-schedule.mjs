@@ -17,7 +17,9 @@ import { getJson } from './lib/fetch.mjs'
 import { SEASON as COMMITTED_SEASON } from '../src/data/teams.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
+// site.web.api, not site.api — the latter 403s every request from a cloud IP.
+// See the note in scripts/fetch-schedule.mjs.
+const SITE = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba'
 
 const args = process.argv.slice(2)
 // Same default as fetch-schedule.mjs: the season the app is committed to (teams.js),
