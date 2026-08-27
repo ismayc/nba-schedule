@@ -4,6 +4,27 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-26
+
+- **The refresh now checks the team list before it fetches anything else.** ESPN's
+  2026-27 NBA team list dropped from 30 teams to 13 partway through the day, and
+  grew a "LON" (the London Lions, a preseason exhibition opponent, not a franchise).
+  Tonight's refresh caught it only downstream, when the resulting 775-game schedule
+  tripped the shrink floor. That was luck: the schedule guard is a floor at 90%,
+  because postponed games legitimately disappear, so a milder truncation to 28 teams
+  would have cleared it and quietly published a roster missing two franchises. A
+  franchise list does not work that way, so it is now compared exactly against what
+  is committed, and any difference stops the run and names the teams that came and
+  went. `--allow-roster-change` is the override for a real expansion or relocation.
+- **A rejected refresh no longer leaves a gutted `teams.js` behind.** The roster file
+  was written before the schedule guard ran, so a run the guard stopped had already
+  overwritten it on disk. CI never committed that (the job dies first), but a local
+  run did. Nothing is written now until every guard has passed.
+- No app or data changes: the site still shows the same 30 teams and 1,200 games.
+  Until ESPN restores the missing 17, the twice-daily refresh will keep failing, now
+  in two tenths of a second with a message that names the cause instead of after
+  ninety pointless requests.
+
 ## 2026-08-16
 
 - **The data scripts now fetch from `site.web.api.espn.com`.** ESPN's edge started
