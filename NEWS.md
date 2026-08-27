@@ -6,6 +6,16 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-08-27
 
+- **The season watch now also watches for ESPN's team list coming back.** The refresh has
+  been failing since August 26 because ESPN's 2026-27 roster is short, which is correct
+  and which nothing here can fix. The risk is the second-order one: a job that is expected
+  to be red trains you to ignore it, so a different failure arriving later would sit
+  unnoticed. `scripts/check-roster-feed.mjs` answers the one question that separates the
+  two, would the roster guard pass right now, and it answers it by calling the refresh's
+  own `fetchTeams` and applying the guard's own comparison, so the watch cannot drift from
+  the thing it is watching. Quiet by default: it writes a line to the job summary, and
+  opens an issue only when the feed is whole again AND the last two refreshes failed
+  anyway.
 - **The refresh now ignores teams that are not NBA franchises.** ESPN's team list for a
   season is not a franchise list: it also carries the exhibition clubs an NBA team is
   scheduled to play. The 2026-27 list contains "LON", the London Lions, a British

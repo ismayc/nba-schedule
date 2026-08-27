@@ -9,6 +9,10 @@ name: New season watch
 # from that sandbox — its egress proxy answers `EGRESS_BLOCKED` for site.api.espn.com.
 # GitHub's runners reach it fine, which the twice-daily refresh job already proves.
 #
+# It also carries a second, unrelated watch: whether ESPN's team list for the CURRENT
+# season has come back after the 2026-08-26 rebuild that has been failing every refresh
+# since. Same shape, same schedule, and it needs no separate workflow.
+#
 # Quiet by design: a "not yet" run writes a line to the job summary and nothing else. Only
 # a real release opens an issue, and only once.
 
@@ -35,6 +39,7 @@ permissions:
   issues: write # the default token is read-only, so opening an issue needs this
   contents: write # push the rollover branch
   pull-requests: write # open the draft rollover PR
+  actions: read # the roster watch reads the Refresh workflow's recent conclusions
 
 jobs:
   watch:
@@ -173,3 +178,76 @@ jobs:
           EOF
           gh pr create --draft --base main --head "$BRANCH" \
             --title "Roll the viewer over to the $SEASON season" --body-file /tmp/pr-body.md
+
+      # ── Roster feed watch ─────────────────────────────────────────────────────────
+      # Unrelated to the rollover above, and here only because it wants the same daily
+      # cadence. On 2026-08-26 ESPN rebuilt its 2026-27 team collection down to 12
+      # franchises, so fetch-schedule's roster guard has refused every refresh since.
+      # That is correct, and nothing here can fix it, but a refresh that is EXPECTED to
+      # be red trains you to ignore it, and a different failure arriving later would then
+      # sit unnoticed. This watches for the day that excuse expires.
+      #
+      # `shell: bash` for pipefail, for the same reason as the check step above.
+      - name: Check whether ESPN's roster feed has recovered
+        id: roster
+        shell: bash
+        run: node scripts/check-roster-feed.mjs | tee -a "$GITHUB_OUTPUT"
+
+      - name: Say what the roster feed looks like
+        env:
+          SUMMARY: ${{ steps.roster.outputs.summary }}
+        run: echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
+      # Only worth a human's attention when BOTH are true: the feed is whole again, so the
+      # guard would pass, AND the refresh is still failing anyway, which means it is now
+      # failing for some other reason.
+      #
+      # Two consecutive failures rather than one, because the refresh runs twice daily and
+      # this watch fires between them: on the day ESPN recovers, the runs that predate the
+      # recovery are legitimately red and a one-failure rule would cry wolf every time.
+      # Two still races if ESPN recovers in the hours right before this runs, so the issue
+      # body says so rather than pretending otherwise.
+      - name: Flag a refresh that should be green and is not
+        if: steps.roster.outputs.recovered == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEASON: ${{ steps.roster.outputs.season }}
+          SUMMARY: ${{ steps.roster.outputs.summary }}
+        run: |
+          CONCLUSIONS=$(gh run list --workflow=refresh-data.yml --branch main \
+            --status completed --limit 2 --json conclusion --jq '[.[].conclusion] | join(" ")')
+          if [ "$CONCLUSIONS" != "failure failure" ]; then
+            echo "Roster feed is whole and the refresh is not stuck ($CONCLUSIONS). Nothing to do." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          TITLE="NBA $SEASON refresh is still failing after ESPN's roster feed recovered"
+          if [ -n "$(gh issue list --state all --search "$TITLE" --json number --jq '.[0].number')" ]; then
+            echo "Already filed for $SEASON. Nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Body via a file, not a heredoc inside $( ): an apostrophe in the prose is enough
+          # to break the latter, and it did.
+          cat > /tmp/roster-body.md <<EOF
+          $SUMMARY
+
+          The last two \`Refresh data\` runs both failed anyway, so whatever is stopping them
+          is no longer the missing teams.
+
+          Found by \`scripts/check-roster-feed.mjs\` on $(date -u +%Y-%m-%d).
+
+          ## What to do
+
+          1. Read the newest failing run: \`gh run list --workflow=refresh-data.yml --limit 3\`
+          2. Reproduce locally with \`node scripts/fetch-schedule.mjs\`, which stops at the first
+             guard that refuses, and says which.
+
+          ## If this is a false alarm
+
+          One race is possible and expected: if ESPN's list came back in the hours between
+          the last refresh and this watch, those two failures predate the recovery and the
+          next scheduled refresh will go green on its own. Check that first, and if it does,
+          close this; it will not re-file.
+          EOF
+          gh issue create --title "$TITLE" --body-file /tmp/roster-body.md
