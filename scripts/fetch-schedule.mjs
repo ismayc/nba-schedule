@@ -24,6 +24,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // Do NOT "restore" the site.api host.
 const SITE = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba'
 const WEB = 'https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba'
+// The core API is the only feed that says which teams are actually IN the league, via
+// conference membership (see fetchFranchiseIds). A different host from SITE/WEB, and not
+// subject to the datacenter block that took site.api out: the Premier League sibling's
+// unattended refresh has been fetching this host from a GitHub runner all along.
+const CORE = 'https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba'
 
 const args = process.argv.slice(2)
 // An NBA season is named for its ENDING year (2025-26 is season 2026). The default
@@ -152,10 +157,54 @@ async function keepKnownBroadcasts(games, file) {
   return restored
 }
 
-export async function fetchTeams() {
-  const d = await getJson(`${SITE}/teams`)
-  return d.sports[0].leagues[0].teams
-    .map(({ team: t }) => ({
+// ESPN's team list for a season is NOT a franchise list. It also carries the exhibition
+// clubs an NBA team is scheduled to play: the 2026-27 list contains "LON", the London
+// Lions (id 134478), a British Basketball League side with exactly one game on file,
+// London Lions at Portland, 2026-10-12. Left in, it lands in teams.js as a 31st team
+// with `color: "#undefined"` and no logo (the site feed gives it neither), sitting in the
+// team picker with zero games, because the schedule fetch skips the preseason it plays in.
+//
+// A franchise is a team ESPN places in a CONFERENCE, which is what the core API's group
+// membership records and what the exhibition clubs lack. That is the same signal the NFL
+// sibling already leans on when it warns about ungrouped teams. Verified against complete
+// seasons: 2025 and 2026 both yield exactly 30 ids, neither containing 134478.
+//
+// Five requests, and the only feed that can answer this. Standings would do it too, and
+// is the usual authority, but it is empty until a season tips off, which is precisely
+// when the roster is being assembled and this matters most.
+async function fetchFranchiseIds(season) {
+  const groups = await getJson(`${CORE}/seasons/${season}/types/2/groups?limit=50`)
+  const ids = new Set()
+  for (const item of groups.items || []) {
+    // ESPN hands back `http://` refs; keep the transport encrypted.
+    const group = await getJson(item.$ref.replace(/^http:/, 'https:'))
+    const ref = group.teams?.$ref
+    if (!ref) continue
+    const url = new URL(ref.replace(/^http:/, 'https:'))
+    url.searchParams.set('limit', '50')
+    for (const t of (await getJson(url.href)).items || []) {
+      ids.add(t.$ref.match(/\/teams\/(\d+)/)?.[1])
+    }
+  }
+  return ids
+}
+
+export async function fetchTeams(season = SEASON) {
+  const [d, franchises] = await Promise.all([
+    getJson(`${SITE}/teams`),
+    fetchFranchiseIds(season),
+  ])
+  const listed = d.sports[0].leagues[0].teams.map(({ team: t }) => t)
+  // An empty set means the group feed itself is unusable. Filtering on it would drop
+  // every team and report the wrong problem, so leave the list alone and let
+  // guardAgainstRosterChange be the backstop it already is.
+  if (!franchises.size) console.warn('  ⚠ no conference membership available; not filtering')
+  const teams = franchises.size ? listed.filter((t) => franchises.has(t.id)) : listed
+  const dropped = listed.filter((t) => !teams.includes(t))
+  if (dropped.length)
+    console.log(`  ignored ${dropped.length} non-franchise: ${dropped.map((t) => t.abbreviation).join(' ')}`)
+  return teams
+    .map((t) => ({
       id: t.id,
       abbr: t.abbreviation,
       slug: t.abbreviation.toLowerCase(),

@@ -4,6 +4,28 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-08-27
+
+- **The refresh now ignores teams that are not NBA franchises.** ESPN's team list for a
+  season is not a franchise list: it also carries the exhibition clubs an NBA team is
+  scheduled to play. The 2026-27 list contains "LON", the London Lions, a British
+  Basketball League side with exactly one game on file (London Lions at Portland,
+  October 12, 2026). Left in, it would have landed in the data as a 31st team with no
+  logo and a broken color, sitting in the team picker with zero games, because the
+  schedule fetch skips the preseason it plays in. A franchise is a team ESPN places in a
+  conference, so that is now the test, taken from the core API's group membership.
+  Checked against complete seasons: 2024-25 and 2025-26 both yield exactly 30 teams,
+  neither including the Lions.
+- **Why this was needed to unstick the refresh.** Yesterday's roster guard stopped the
+  bad data, but it could not have recovered on its own. ESPN is rebuilding its 2026-27
+  team list, currently at 12 franchises, and the end state looks like 31 entries rather
+  than 30, which the guard would also have rejected. Now the exhibition club is filtered
+  before the guard ever sees it, so the moment ESPN finishes repopulating, refreshes
+  resume with nobody in the loop.
+- No app or data changes: the site still shows the same 30 teams and 1,200 games. Every
+  team's 2026-27 schedule is intact at ESPN throughout (80 games each, verified), so
+  nothing has been lost; only the league's own team list is short.
+
 ## 2026-08-26
 
 - **The refresh now checks the team list before it fetches anything else.** ESPN's
