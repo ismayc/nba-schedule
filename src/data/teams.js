@@ -113,7 +113,7 @@ export const TEAMS = [
     "name": "Rockets",
     "location": "Houston",
     "displayName": "Houston Rockets",
-    "color": "#ce1141",
+    "color": "#ce0e2d",
     "altColor": "#000000"
   },
   {
