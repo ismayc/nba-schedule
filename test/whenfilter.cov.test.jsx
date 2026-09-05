@@ -10,7 +10,7 @@ import { whenBucket } from '../src/utils/time.js'
 // App test asserts the CONTRAST between the two When buckets, and both halves of
 // that contrast move: which games exist is data, which bucket each falls in is a
 // comparison against Date.now(). It used to derive the expectation from the data
-// alone, which is why it broke anyway — a game with no committed score whose tip
+// alone, which is why it broke anyway. A game with no committed score whose tip
 // has passed reads as finished, so an unplayed board plus a 2027 clock filled the
 // "Finished" bucket the test expected to be empty.
 vi.mock('../src/data/schedule.js', async (importOriginal) => ({
