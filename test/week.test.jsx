@@ -1,10 +1,29 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WeekView from '../src/components/WeekView.jsx'
-import { GAMES } from '../src/data/schedule.js'
+// The FROZEN unplayed board, not src/data/schedule.js. See the fixture's own header:
+// the live board stops being unplayed on opening night, and the empty-week test below
+// needs a season that has not started.
+import { GAMES_2627_PRESEASON as GAMES } from './fixtures/preseason-2627.js'
 
 const TZ = 'America/New_York'
+
+// Pin the clock too. "The current week" comes from Date.now(), so freezing the board
+// alone would only move the failure. This instant is three weeks before opening night
+// on October 20, 2026, which is what stepIntoSeason below walks forward from.
+//
+// Verified by rehearsal: without this the empty-week test failed on October 20, 2026,
+// the day the season starts, with no commit behind it.
+const NOW = new Date('2026-10-01T12:00:00.000Z')
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
+})
+
+afterEach(() => vi.useRealTimers())
+
 const open = (props = {}) => render(<WeekView games={GAMES} tz={TZ} {...props} />)
 
 // The runner's "today" can sit anywhere relative to the committed season: before it

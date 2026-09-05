@@ -6,7 +6,18 @@ import App from '../src/App.jsx'
 import { FollowProvider } from '../src/context/follow.jsx'
 import { ServicesProvider } from '../src/context/services.jsx'
 import { whenBucket } from '../src/utils/time.js'
-import { GAMES } from '../src/data/schedule.js'
+// The FROZEN unplayed board, and a clock pinned before opening night. This file's
+// App test asserts the CONTRAST between the two When buckets, and both halves of
+// that contrast move: which games exist is data, which bucket each falls in is a
+// comparison against Date.now(). It used to derive the expectation from the data
+// alone, which is why it broke anyway — a game with no committed score whose tip
+// has passed reads as finished, so an unplayed board plus a 2027 clock filled the
+// "Finished" bucket the test expected to be empty.
+vi.mock('../src/data/schedule.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  GAMES: (await import('./fixtures/preseason-2627.js')).GAMES_2627_PRESEASON,
+}))
+import { GAMES_2627_PRESEASON as GAMES } from './fixtures/preseason-2627.js'
 
 const NOW = new Date('2026-07-19T18:00:00.000Z').getTime()
 
@@ -24,7 +35,12 @@ const mount = async () => {
   return utils
 }
 
+// See the mock above: only Date is faked, so userEvent's timers keep working.
+const PINNED = new Date('2026-10-01T12:00:00.000Z')
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(PINNED)
   Element.prototype.scrollIntoView = vi.fn()
   localStorage.clear()
   window.history.replaceState(null, '', '/')
@@ -32,6 +48,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -78,34 +95,20 @@ describe('the When filter in the app', () => {
     await userEvent.click(finished)
     expect(finished).toHaveAttribute('aria-pressed', 'true')
 
-    // "All the cards left are finished" would pass even with the filter doing
+    // "All the cards left are upcoming" would pass even with the filter doing
     // nothing. The CONTRAST is what has teeth: one bucket keeps games and the other
-    // must empty the list entirely. Which is which depends on the season state —
-    // a fresh rollover is all upcoming, a finished season all played — so derive
-    // it from the data rather than pinning either era.
-    const anyPlayed = GAMES.some((g) => g.score)
-    if (anyPlayed) {
-      expect(cardCount()).toBeGreaterThan(0)
-      for (const c of document.querySelectorAll('article.game')) {
-        expect(c.className).toMatch(/state-(final|past)\b/)
-      }
-    } else {
-      expect(cardCount()).toBe(0)
-      expect(screen.getByText(/No games match those filters/)).toBeInTheDocument()
-    }
+    // must empty the list entirely. With the board frozen unplayed and the clock
+    // pinned before opening night, Finished is the empty one.
+    expect(GAMES.some((g) => g.score)).toBe(false)
+    expect(cardCount()).toBe(0)
+    expect(screen.getByText(/No games match those filters/)).toBeInTheDocument()
 
     expect(screen.getByRole('button', { name: /⚙ Filters/ })).toHaveTextContent('1')
 
     await userEvent.click(screen.getByRole('button', { name: '⏱ Upcoming' }))
-    if (anyPlayed && GAMES.every((g) => g.score)) {
-      // A fully played season: Upcoming is the empty bucket.
-      expect(cardCount()).toBe(0)
-      expect(screen.getByText(/No games match those filters/)).toBeInTheDocument()
-    } else {
-      expect(cardCount()).toBeGreaterThan(0)
-      for (const c of document.querySelectorAll('article.game')) {
-        expect(c.className).not.toMatch(/state-(final|past)\b/)
-      }
+    expect(cardCount()).toBeGreaterThan(0)
+    for (const c of document.querySelectorAll('article.game')) {
+      expect(c.className).not.toMatch(/state-(final|past)\b/)
     }
 
     await userEvent.click(screen.getByRole('button', { name: /Clear all/ }))

@@ -26,12 +26,25 @@ const wrap = (game, props = {}) =>
     </ServicesProvider>
   )
 
+// Pin the clock. The upcoming-game case below hands GameCard a fixed January 2027
+// tip and asserts on a countdown, which only reads "in ..." while that instant is
+// still ahead of Date.now(). Verified by rehearsal: it failed from February 2027
+// on, with nothing committed behind it.
+//
+// Only Date is faked, so real timers keep working.
+const NOW = new Date('2026-10-01T12:00:00.000Z')
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
   Element.prototype.scrollIntoView = vi.fn()
   localStorage.clear()
 })
 
-afterEach(() => cleanup())
+afterEach(() => {
+  vi.useRealTimers()
+  cleanup()
+})
 
 describe('livePeriod', () => {
   it('covers every period/label branch', () => {

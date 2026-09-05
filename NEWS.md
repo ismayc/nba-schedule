@@ -4,6 +4,29 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-09-05
+
+- **Four suites were exposed to the calendar, not to the data.** Rehearsing the gate
+  against a shifted `Date` with `src/data/schedule.js` untouched found one test failing on
+  **October 20, 2026** (opening night), two more by February 2027, and a branch that dries
+  up by June 2027 with every test still green. None of them would have had a commit
+  behind them.
+- **`test/fixtures/preseason-2627.js`** is a verbatim, never-regenerated freeze of all
+  1200 unplayed 2026-27 rows. It is the bookend to `season2526.js`: that one froze a
+  FINISHED season so tests could exercise scores and OT after the rollover, this one
+  freezes the UNPLAYED board, because several suites assert that a game is upcoming, that
+  a week has no games yet, or that the Upcoming filter has something to keep. The live
+  board stops being unplayed on opening night and never goes back.
+- **Freezing the board is only half of it.** `whenfilter.cov.test.jsx` used to derive its
+  expectation from the data (`GAMES.some((g) => g.score)`), but the app derives the card's
+  state from the clock: a game with no committed score whose tip has passed reads as
+  finished. So an unplayed board plus a 2027 clock filled the "Finished" bucket the test
+  expected to be empty. With the board frozen and the clock pinned before opening night,
+  the branching is gone and both assertions are deterministic.
+- **Four files now pin the clock**: `week.test.jsx`, `whenfilter.cov.test.jsx`,
+  `gamecard.cov.test.jsx` and `gamedetail.cov.test.jsx`. Re-rehearsed green at five dates
+  from October 2026 through September 2027.
+
 ## 2026-08-30
 
 - **Production is now checked after every deploy.** Nothing in this repo ever fetched an
