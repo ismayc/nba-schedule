@@ -24,8 +24,10 @@ function parts(ms) {
 }
 
 // Two units are enough at any distance, and a seconds ticker only earns its place
-// inside the final hour — a WNBA season runs five months, so most of the time the
-// next game is days out and a per-second countdown is noise the eye can't use.
+// inside the final hour. This league plays most nights from October to mid-April, so
+// the next game is usually hours out rather than days, but a per-second countdown is
+// still noise the eye cannot use at that distance. (The sentence here used to describe
+// the WNBA's five-month season, copied in when this repo was templated from it.)
 function Countdown({ ms }) {
   const t = parts(ms)
   const boxes =
@@ -84,7 +86,7 @@ export default function NextGame({ games, tz }) {
   const { mode, list, followed } = useMemo(() => {
     const involvesFollowed = (g) => isFollowed(g.home) || isFollowed(g.away)
     // A followed team playing live wins outright; otherwise stack every live game (a
-    // full WNBA slate runs several at once). No live → the next upcoming game,
+    // full slate here can run a dozen or more at once). No live → the next upcoming game,
     // preferring a followed team's.
     const liveGames = games.filter((g) => liveState(g, now) === 'live')
     if (liveGames.length) {

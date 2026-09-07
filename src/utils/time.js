@@ -77,8 +77,10 @@ export function dayLabel(key, tz, now = new Date()) {
   }).format(d)
 }
 
-// A NBA game runs ~2h; treat that as the window in which a game with no live feed
-// should still be considered possibly in progress.
+// The window is LEAGUE.gameLengthMs, 2.25h. The comment here used to say "~2h", which
+// contradicted the value directly above it: 48 minutes of clock plus stoppages and TV
+// runs a game past two hours. Inherited from the WNBA sibling, whose 40-minute game
+// really is nearer two.
 const GAME_MS = LEAGUE.gameLengthMs
 
 export function liveState(game, now = Date.now()) {
