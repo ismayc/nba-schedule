@@ -190,15 +190,18 @@ function Table({ caption, rows, rankKey, onPick }) {
   )
 }
 
-export default function StandingsView({ games, onPick }) {
+export default function StandingsView({ games, onPick, race }) {
   // Source rows from playoffRace (not conferenceStandings) so each row carries the
   // clinched/eliminated status the badges and row-elim styling read. playoffRace returns
   // a flat, per-conference-seeded list; regroup it back into the two conference tables.
   const byConf = useMemo(() => {
     const groups = { E: [], W: [] }
-    for (const row of playoffRace(games)) groups[row.conf].push(row)
+    // `race` comes from App, which derives it once for every view that needs it. The
+    // fallback keeps this component renderable on its own, the same way
+    // utils/bracket.js accepts an injected `standings`.
+    for (const row of race ?? playoffRace(games)) groups[row.conf].push(row)
     return groups
-  }, [games])
+  }, [games, race])
 
   return (
     <section className="view">
