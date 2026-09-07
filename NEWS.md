@@ -6,6 +6,26 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-09-06
 
+- **Every league fact now lives in one file, `src/config/league.js`.** Done as a pair with
+  the WNBA sibling this repo was templated from, so the two now carry the same shape: 17
+  files import one module instead of holding their own copy of the ESPN paths, storage
+  prefix, period vocabulary, `.ics` identity, deploy host and locale. All 709 existing
+  tests passed untouched.
+- **One field this league needs that the WNBA does not: `seasonLabel`.** An NBA season
+  spans two calendar years, so `SEASON` is the ESPN season id (2027) and `SEASON_LABEL` is
+  what a reader sees (2026-27). Both are re-exported from the config so callers have one
+  import point.
+- **`App.jsx` had ten inline `localStorage` literals spelling out `nba:`.** Now one
+  `const NS = LEAGUE.storageKey`, with `test/chrome-identity.test.js` tying that value to
+  the pre-paint literal in `index.html` that `guards.test.js` checks against the family
+  registry.
+- **Three comments described the WNBA, not this league.** `NextGame.jsx` justified its
+  countdown granularity with "a WNBA season runs five months, so most of the time the next
+  game is days out"; this league plays most nights from October to mid-April. The same file
+  called a live slate "several at once", where a full slate here runs a dozen or more. And
+  `time.js` said "A NBA game runs ~2h" directly above a 2.25h constant, contradicting the
+  value beside it. No values changed, but this is the fourth instance today of a scaffolded
+  repo inheriting its sibling's reasoning while the code stayed correct.
 - **Box scores are built for a phone now.** Three changes, all below 560px and none of
   them touching the desktop table. The four columns that answer "who played well"
   (MIN, PTS, REB, AST) show by default, which fits with no sideways scroll at all, and
