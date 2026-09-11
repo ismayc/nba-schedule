@@ -4,6 +4,16 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-09-11
+
+- **Fixed the refresh gate: two tests hardcoded "no local channels."** The scheduled
+  refresh went red because the new data carries a regional feed (Monumental Sports
+  Network for the Wizards), and two tests asserted the live `LOCAL_CATALOG` was empty
+  ("a fully national slate, which is this league today"). That assumption no longer
+  holds. The empty-case tests now drive a mocked-empty catalog (mirroring the populated
+  sibling test), and the unit test keeps its synthetic national-slate check, so neither
+  depends on which games happen to carry a local feed. Coverage stays at 100%.
+
 ## 2026-09-10
 
 - **Fixed: the game-detail popup could not be closed on mobile.** The modal was sized and
