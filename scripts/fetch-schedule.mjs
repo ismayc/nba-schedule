@@ -257,8 +257,14 @@ function parseSeriesNote(notes) {
 
 // The team-schedule feed and the scoreboard feed disagree on broadcast shape:
 // schedule uses `media.shortName`, scoreboard uses `names[]`. Accept both.
+// Radio broadcasts (ESPN's national "ERADM", etc.) are dropped: this is a TV/streaming
+// watch picker, and a radio feed only pollutes the local-channel list. `type` sits on the
+// broadcast entry (`type.shortName` is TV / Radio / Streaming); an entry without a type is
+// kept, so a missing field never silently drops a real TV listing.
 function broadcastNames(c) {
-  const names = (c.broadcasts || []).flatMap((b) => b.names || (b.media ? [b.media.shortName] : []))
+  const names = (c.broadcasts || [])
+    .filter((b) => b.type?.shortName !== 'Radio')
+    .flatMap((b) => b.names || (b.media ? [b.media.shortName] : []))
   return [...new Set(names.filter(Boolean))]
 }
 

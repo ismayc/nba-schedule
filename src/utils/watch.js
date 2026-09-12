@@ -68,6 +68,16 @@ const NATIONAL_NAMES = new Set([
   'Paramount+',
   'Disney+',
   'NBA League Pass',
+  // National TV/streaming that ESPN marks `market: National`. Without these they fall
+  // through to the local-channel picker as bogus "local" feeds. (Radio nationals like
+  // "ERADM" are dropped earlier, at fetch time, so they never reach here.)
+  'TNT',
+  'truTV',
+  'ESPN2',
+  'ESPNU',
+  'ESPN+',
+  'HBO Max',
+  'Watch/ESPN App',
 ])
 
 // ESPN emits some regional sports networks as terse acronyms (the Wizards' feed arrives as
@@ -83,6 +93,7 @@ const RSN_NAMES = {
   MNMT: 'Monumental Sports Network',
   MNMT2: 'Monumental Sports Network 2',
   MSG: 'MSG Network',
+  MSG2: 'MSG Network 2',
   ROOT: 'Root Sports Northwest',
   YES: 'YES Network',
 }

@@ -143,7 +143,14 @@ describe('localChannelCatalog', () => {
     expect(labelFor('YES')).toBe('YES Network')
     expect(labelFor('CHSN')).toBe('Chicago Sports Network')
     expect(labelFor('GCSEN')).toBe('Gulf Coast Sports & Entertainment Network')
+    expect(labelFor('MSG2')).toBe('MSG Network 2')
     // A callsign is already how the station is known; it stays raw (matches WNBA).
     expect(labelFor('KFAA-TV')).toBe('KFAA-TV')
+  })
+
+  it('keeps national TV and streaming feeds out of the local picker', () => {
+    for (const national of ['TNT', 'truTV', 'ESPN2', 'ESPNU', 'ESPN+', 'HBO Max', 'Watch/ESPN App']) {
+      expect(localChannelCatalog([g('AAA', 'BBB', national)])).toEqual([])
+    }
   })
 })

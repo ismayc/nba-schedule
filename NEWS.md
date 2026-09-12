@@ -6,6 +6,13 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-09-11
 
+- **National feeds no longer leak into the local-channel picker.** Mining the archive turned
+  up national broadcasts (TNT, truTV, ESPN2, ESPNU, ESPN+, HBO Max) that were being offered
+  as pickable "local" channels because they were missing from the national list, plus ESPN's
+  national radio feed "ERADM" on 242 games a season. Radio is now dropped at fetch time (a
+  TV/streaming picker has no use for it, and the broadcast data flags each feed's type), and
+  the national TV/streaming names were added to the national set, so the picker lists only
+  genuine regional feeds.
 - **Regional feeds show their full name.** ESPN emits some regional sports networks as terse
   acronyms (the Wizards' feed arrives as "MNMT") rather than the readable station names it
   gives most markets. Mined the last five seasons of ESPN broadcast data to find them, and
