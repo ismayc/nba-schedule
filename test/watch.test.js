@@ -123,4 +123,18 @@ describe('localChannelCatalog', () => {
   it('is empty for a fully national slate', () => {
     expect(localChannelCatalog([g('AAA', 'BBB', 'ESPN')])).toEqual([])
   })
+
+  it('shows a known RSN abbreviation under its full name, keying and matching on the raw code', () => {
+    const cat = localChannelCatalog([
+      g('WSH', 'BOS', 'MNMT'),
+      g('MIA', 'WSH', 'MNMT'), // WSH is the common team → attributed to WSH
+    ])
+    expect(cat).toHaveLength(1)
+    expect(cat[0]).toMatchObject({
+      key: 'local:MNMT', // key stays the raw code, so saved picks survive the rename
+      label: 'Monumental Sports Network',
+      team: 'WSH',
+    })
+    expect(cat[0].match(['MNMT'])).toBe(true) // games still carry the raw string
+  })
 })

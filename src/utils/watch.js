@@ -70,6 +70,15 @@ const NATIONAL_NAMES = new Set([
   'NBA League Pass',
 ])
 
+// ESPN emits some regional feeds as terse abbreviations (the Wizards' feed arrives as
+// "MNMT") rather than the readable station names it gives most markets. Map the codes we
+// have actually seen to their full names for the picker; an unmapped code falls through to
+// ESPN's raw string, so this only needs an entry per feed that arrives abbreviated. Add to
+// it as new RSNs appear in the schedule data.
+const RSN_NAMES = {
+  MNMT: 'Monumental Sports Network',
+}
+
 // The distinct local/regional feeds a season's games name, as picker entries. Each
 // feed is attributed to the one team present in EVERY game it airs (a market feed
 // carries its team home and away) — `team` is that abbr, or null if no single team
@@ -90,7 +99,7 @@ export function localChannelCatalog(games) {
   return [...teamsByName.entries()]
     .map(([name, teams]) => ({
       key: `local:${name}`,
-      label: name,
+      label: RSN_NAMES[name] ?? name,
       kind: 'local',
       team: teams.size === 1 ? [...teams][0] : null,
       match: carries(name),
