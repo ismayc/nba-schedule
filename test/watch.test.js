@@ -137,4 +137,13 @@ describe('localChannelCatalog', () => {
     })
     expect(cat[0].match(['MNMT'])).toBe(true) // games still carry the raw string
   })
+
+  it('maps the acronym RSNs but leaves a TV-station callsign as ESPN emits it', () => {
+    const labelFor = (code) => localChannelCatalog([g('AAA', 'BBB', code)])[0].label
+    expect(labelFor('YES')).toBe('YES Network')
+    expect(labelFor('CHSN')).toBe('Chicago Sports Network')
+    expect(labelFor('GCSEN')).toBe('Gulf Coast Sports & Entertainment Network')
+    // A callsign is already how the station is known; it stays raw (matches WNBA).
+    expect(labelFor('KFAA-TV')).toBe('KFAA-TV')
+  })
 })

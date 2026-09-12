@@ -6,12 +6,15 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-09-11
 
-- **Regional feeds show their full name.** ESPN emits some regional feeds as terse
-  abbreviations (the Wizards' feed arrives as "MNMT") rather than the readable station
-  names it gives most markets. The local-channel picker now maps the codes we have seen to
-  their full names ("MNMT" becomes "Monumental Sports Network"), while keeping the raw code
-  as the entry key and match target so saved picks and game matching are unchanged. An
-  unmapped code still falls through to ESPN's raw string; add to the map as new RSNs appear.
+- **Regional feeds show their full name.** ESPN emits some regional sports networks as terse
+  acronyms (the Wizards' feed arrives as "MNMT") rather than the readable station names it
+  gives most markets. Mined the last five seasons of ESPN broadcast data to find them, and
+  the local-channel picker now maps the acronym RSNs to their full names (Bulls' CHSN,
+  Pelicans' GCSEN, Wizards' MNMT, Knicks' MSG, Nets' YES, Blazers' ROOT, and their overflow
+  feeds), while keeping the raw code as the entry key and match target so saved picks and
+  game matching are unchanged. TV-station callsigns ("KFAA-TV") are left as ESPN emits them,
+  since that is how the station is known; an unmapped string still falls through to the raw
+  value. Add to the map as new RSNs appear.
 - **Fixed the refresh gate: two tests hardcoded "no local channels."** The scheduled
   refresh went red because the new data carries a regional feed (Monumental Sports
   Network for the Wizards), and two tests asserted the live `LOCAL_CATALOG` was empty
