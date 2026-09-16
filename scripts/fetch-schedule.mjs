@@ -349,8 +349,8 @@ export async function fetchSchedule(teams, season = SEASON) {
 const titleCase = (s) => s.toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase())
 
 async function fetchAllStar() {
-  const d = await getJson(`${SITE}/scoreboard?dates=${SEASON}0210-${SEASON}0225&limit=300`)
-  return (d.events || [])
+  const events = await scoreboardSpan(`${SEASON}0210`, `${SEASON}0225`, 300)
+  return events
     .filter((ev) => ev.competitions?.[0]?.type?.abbreviation === 'ALLSTAR')
     .map((ev) => {
       const game = normalizeEvent(ev)
@@ -371,13 +371,34 @@ async function fetchAllStar() {
 // a single final score cannot ("won by 8" vs "led by 20 and held on").
 //
 // Line scores and per-game leaders live only on the scoreboard endpoint, not the
-// team-schedule endpoint the rest of this script uses. The scoreboard accepts a date
-// RANGE, so a month per request covers the season in ~7 calls.
+// team-schedule endpoint the rest of this script uses.
 const yyyymm = (iso) => iso.slice(0, 7)
 const monthRange = (ym) => {
   const [y, m] = ym.split('-').map(Number)
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
   return `${y}${String(m).padStart(2, '0')}01-${y}${String(m).padStart(2, '0')}${last}`
+}
+
+// ESPN dropped hyphenated date-range scoreboard queries in September 2026: every
+// `dates=A-B` now answers HTTP 400 (even a same-day `A-A`), while a single `dates=A`
+// still works. Expand a YYYYMMDD span into its individual days and fetch them one at
+// a time (concurrently), merged by event id. Iterating in UTC-day steps keeps the
+// coverage identical to the range it replaces, with no timezone bucketing to reason about.
+const expandDays = (from, to) => {
+  const at = (s) => Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8))
+  const out = []
+  for (let t = at(from); t <= at(to); t += 86400000) {
+    out.push(new Date(t).toISOString().slice(0, 10).replaceAll('-', ''))
+  }
+  return out
+}
+async function scoreboardSpan(from, to, limit) {
+  const pages = await mapLimit(expandDays(from, to), CONCURRENCY, (day) =>
+    getJson(`${SITE}/scoreboard?dates=${day}&limit=${limit}`)
+  )
+  const byId = new Map()
+  for (const d of pages) for (const ev of d.events || []) byId.set(ev.id, ev)
+  return [...byId.values()]
 }
 
 // The three categories ESPN reports per game. "rating" is a composite summary line and
@@ -389,8 +410,9 @@ async function enrichWithBoxScores(games) {
   const byId = new Map()
 
   for (const ym of months) {
-    const d = await getJson(`${SITE}/scoreboard?dates=${monthRange(ym)}&limit=400`)
-    for (const ev of d.events || []) {
+    const [from, to] = monthRange(ym).split('-')
+    const events = await scoreboardSpan(from, to, 400)
+    for (const ev of events) {
       const c = ev.competitions?.[0]
       if (!c) continue
       // A live (or stale-cached mid-game) scoreboard snapshot carries a PARTIAL line
