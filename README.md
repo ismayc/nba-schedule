@@ -174,7 +174,8 @@ season the app is on, and drops any season with no champion yet.
 ```bash
 npm install
 npm run dev              # local dev server
-npm test                 # unit + render tests
+npm test                 # unit + render tests, against frozen data
+npm run test:data        # the live suite: the real committed data (what a refresh must pass)
 npm run build            # production bundle
 npm run coverage:badge   # tests with coverage, writes public/coverage.json
 
@@ -190,6 +191,22 @@ the data jobs on a bare checkout with no install step. A CI job enforces this.
 
 The suite leans on real data rather than hand-made fixtures, because real data contains
 the edge cases you wouldn't think to invent.
+
+Real, but frozen. There are two suites, and they never mix:
+
+- **The main suite** (`npm test`, the 100% coverage gate) never sees the modules the
+  refresh rewrites. A plugin in `vite.config.js` resolves every import of
+  `src/data/schedule.js`, `leaders.js`, and `teams.js` to a frozen 2026-27 preseason
+  stand-in under `test/fixtures/frozen/`, whoever the importer is. Coverage therefore
+  cannot move when the data does: the gate passes unchanged with those three modules
+  made to throw on import.
+- **The live suite** (`npm run test:data`, `test/live/`) reads the real modules and has no
+  coverage threshold. It holds invariants (unique ids, known teams, finite stats, a
+  per-conference standings table that recounts from the games) and a smoke render of
+  every view, every game dialog, and every team panel, checked for the residue of a bad
+  value (`NaN`, `Invalid Date`, 1969). This is the gate a refresh has to pass. Only things
+  true on any day of any season belong in it; it passes on both an unplayed board and the
+  whole finished 2025-26 season.
 
 - **Standings and tiebreakers** are checked against the committed 2025-26 season — the
   per-conference seeds are independently verifiable against ESPN's published standings.

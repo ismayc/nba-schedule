@@ -4,6 +4,41 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-09-19
+
+- **A refresh can no longer move the coverage gate, by construction.** Ported from the
+  WNBA sibling, where a refresh reddened the gate three times in six weeks; this repo's
+  own refresh went red the same way on September 11, when a regional channel appeared in
+  the data. 27 of 58 test files imported the live data modules, and 20 source files read
+  them. A plugin in `vite.config.js` now resolves every import of `src/data/schedule.js`,
+  `leaders.js`, and `teams.js` (the three modules the refresh rewrites) to a frozen stand-in
+  in `test/fixtures/frozen/`, matching on the resolved path so the importer does not
+  matter. The schedule stand-in is the existing `test/fixtures/preseason-2627.js`, so the
+  whole suite now reads one unplayed board. Frozen a month before opening night, which is
+  when those files would have started reading scores.
+- **Proven three ways.** The gate is unchanged: 728 tests and 100% on all four measures,
+  with the same totals as before the change (2285 statements, 2024 branches). With all
+  three live modules made to throw on import, the gate still passes, so nothing in the
+  main suite reaches them. And the live suite has teeth: a null tip, an unknown team, and
+  a string-valued stat planted in the live data failed six tests.
+- **The refresh gate is now a live suite, not the coverage gate.** `npm run test:data`
+  runs `test/live/` against the real modules with no coverage threshold: schedule
+  integrity checks (new here; the WNBA sibling had them, this repo never did), invariants
+  on the player table and the per-conference standings, a parity check that the frozen
+  stand-ins export what the live modules export, and a smoke render of all seven views,
+  every game dialog, and every team panel, scanned for `NaN`, `undefined`, `Invalid Date`,
+  and 1969. It runs in about 11 seconds.
+- **Checked against a whole season, not just today's board.** The live suite also passes
+  on the finished 2025-26 season from git history (1,330 games including the All-Star
+  round robin, the NBA Cup final, the play-in, and the playoffs, and 578 players), so
+  none of its invariants will raise a false alarm in February, April, or June. One check
+  was made conditional for this repo: the player-field parity check runs only once the
+  table has rows, because the table is empty until opening night and would otherwise fail
+  every preseason refresh.
+- **CI runs both.** The `test` job runs the live suite against the committed data after
+  the coverage gate, and `Gate against the next refresh` runs it against freshly fetched
+  data. Five new guards in `test/guards.test.js` keep the arrangement from eroding.
+
 ## 2026-09-18
 
 - **Player names in the Game leaders block are no longer cut on a phone.** The two teams
