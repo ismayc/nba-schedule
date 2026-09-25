@@ -4,6 +4,23 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-09-25
+
+- **Play-in and playoff games will reach the schedule as soon as ESPN posts them.**
+  ESPN's per-team schedule feed lags the bracket by days: on September 25 the WNBA
+  sibling's feed was empty for every team while the scoreboard already listed the first
+  round, and its playoffs had to be forced in by hand. This viewer read the postseason
+  only from that same per-team feed. `scripts/fetch-schedule.mjs` now also reads the
+  scoreboard from the last regular-season day through the next 80 days. There the type
+  lives only on `season.type` (3 playoffs, 5 play-in; the competition `type` is "STD" or
+  a round code, which the normal parser would drop), so those games are read by it
+  explicitly. Slots with "TBD" teams are skipped until a later refresh finds them filled
+  in, and the team feed still wins for any game both sources have. Checked against the
+  real 2025-26 postseason: the scoreboard read returns all 91 games (6 play-in, 85
+  playoff) with the same ids, rounds, and home teams as the committed archive. Tests are
+  in `test/playoffs-feed.test.js`. The rule is now family-wide in sports-viewer-meta
+  (PLAYBOOK §2 trap 8, audit check 12).
+
 ## 2026-09-19
 
 - **A refresh can no longer move the coverage gate, by construction.** Ported from the

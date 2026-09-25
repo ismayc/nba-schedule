@@ -268,11 +268,13 @@ function broadcastNames(c) {
   return [...new Set(names.filter(Boolean))]
 }
 
-function normalizeEvent(ev) {
+// `forcedType` is for events whose type sits somewhere else: a scoreboard event carries
+// it as `season.type`, and its competition `type` is "STD" or a round code ("RD16").
+function normalizeEvent(ev, forcedType) {
   const c = ev.competitions?.[0]
   if (!c) return null
 
-  let seasonType = SEASON_TYPE[ev.seasonType?.id ?? c.type?.id]
+  let seasonType = forcedType ?? SEASON_TYPE[ev.seasonType?.id ?? c.type?.id]
   if (!seasonType) return null // drops preseason
 
   const home = c.competitors.find((t) => t.homeAway === 'home')
@@ -399,6 +401,38 @@ async function scoreboardSpan(from, to, limit) {
   const byId = new Map()
   for (const d of pages) for (const ev of d.events || []) byId.set(ev.id, ev)
   return [...byId.values()]
+}
+
+// Play-in and playoff games from the scoreboard. The per-team schedule feed lags the
+// bracket by days: on 2026-09-25 it was empty for every WNBA team while the scoreboard
+// already listed the first round, and the playoffs reached that viewer only by hand. So
+// the scoreboard is read too, from the last regular-season day through the next 80
+// (the play-in starts about three days after the regular season and the Finals end in
+// late June; the 2025-26 run was April 14 to June 13). On the scoreboard the type lives
+// only on `season.type` (3 playoffs, 5 play-in). Slots whose teams are still "TBD" are
+// skipped until a later refresh finds them filled in. Pure, for tests. The shared rule
+// is PLAYBOOK §2 trap 8 in sports-viewer-meta.
+const POSTSEASON_TYPES = { 3: 'playoffs', 5: 'playin' }
+const POSTSEASON_DAYS = 80
+
+export function playoffsFromScoreboard(events, knownAbbrs) {
+  const real = (t) => Number(t.team?.id) > 0 && knownAbbrs.has(t.team?.abbreviation)
+  return events
+    .filter((ev) => POSTSEASON_TYPES[Number(ev.season?.type)])
+    .filter((ev) => (ev.competitions?.[0]?.competitors || []).every(real))
+    .map((ev) => normalizeEvent(ev, POSTSEASON_TYPES[Number(ev.season.type)]))
+    .filter(Boolean)
+}
+
+const ymd = (iso) => iso.slice(0, 10).replaceAll('-', '')
+
+async function fetchPlayoffs(games, teams) {
+  const regular = games.filter((g) => g.seasonType === 'regular').map((g) => g.tip).sort()
+  if (!regular.length) return []
+  const last = regular.at(-1)
+  const end = new Date(Date.parse(last) + POSTSEASON_DAYS * 86400000).toISOString()
+  const events = await scoreboardSpan(ymd(last), ymd(end), 100)
+  return playoffsFromScoreboard(events, new Set(teams.map((t) => t.abbr)))
 }
 
 // The three categories ESPN reports per game. "rating" is a composite summary line and
@@ -676,8 +710,11 @@ async function main() {
   console.log('Fetching schedules…')
   const games = await fetchSchedule(teams)
   const allStar = await fetchAllStar()
-  if (allStar.length) {
-    games.push(...allStar)
+  // The team feeds win where both have a game; the scoreboard only adds what they lack.
+  const have = new Set(games.map((g) => g.id))
+  const playoffs = (await fetchPlayoffs(games, teams)).filter((g) => !have.has(g.id))
+  if (allStar.length || playoffs.length) {
+    games.push(...allStar, ...playoffs)
     games.sort((a, b) => a.tip.localeCompare(b.tip) || a.id.localeCompare(b.id))
   }
   const counts = games.reduce((a, g) => ({ ...a, [g.seasonType]: (a[g.seasonType] || 0) + 1 }), {})
