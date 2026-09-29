@@ -6,6 +6,13 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-09-29
 
+- **CI finishes in about 7 minutes instead of 36 to 39.** The clock rehearsal ran its
+  seven future dates one after another, about 310 seconds each, because this repo's
+  frozen board puts 92 to 162 game cards on screen for the App tests (the WNBA board
+  shows 3 to 23). Test, deploy, and the production smoke test were green by minute 7,
+  but the run, and the next push queued behind it, waited for the rest. Each date now
+  runs as its own parallel job, with the same dates, the same command, and the same
+  coverage gate.
 - **The data-freshness monitor now says "unknown" when it cannot read the run history.**
   Before, a GitHub API outage that failed every listing call looked the same as a dead
   pipeline: the run went red and filed "Refresh has not landed for days", a claim
