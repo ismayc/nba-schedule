@@ -148,7 +148,7 @@ describe('live overlay from a poll', () => {
     // The overlay flips the committed upcoming game to in-progress.
     expect(screen.getByText(/1 live now/)).toBeInTheDocument()
     // A successful poll records an updated-at stamp in the footer.
-    expect(screen.getByText(/Updated/)).toBeInTheDocument()
+    expect(screen.getByText(/Live scores checked/)).toBeInTheDocument()
 
     // nLive > 0 -> the interval runs at the 30s live cadence. Advancing 30s fires it.
     const before = fetch.mock.calls.length

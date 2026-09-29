@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './data/schedule.js'
 import { SEASON, SEASON_LABEL, TEAMS } from './data/teams.js'
+import { DATA_UPDATED_AT } from './data/meta.js'
 import {
   detectTimezone,
   timezoneOptions,
@@ -33,6 +34,7 @@ import HistoryView from './components/HistoryView.jsx'
 import { HISTORY_BY_YEAR } from './data/history.js'
 import { detectEvents, eventKey } from './services/alerts.js'
 import TeamLogo from './components/TeamLogo.jsx'
+import FooterTimes from './components/FooterTimes.jsx'
 import { LEAGUE } from './config/league.js'
 import { playoffRace } from './utils/standings.js'
 
@@ -765,12 +767,7 @@ export default function App() {
               View source on GitHub
             </a>
           </p>
-          {updatedAt && (
-            <span className="dim">
-              Updated{' '}
-              {updatedAt.toLocaleTimeString(LEAGUE.locale, { hour: 'numeric', minute: '2-digit' })}
-            </span>
-          )}
+          <FooterTimes dataAt={DATA_UPDATED_AT} checkedAt={updatedAt} tz={tz} />
         </div>
       </footer>
     </div>

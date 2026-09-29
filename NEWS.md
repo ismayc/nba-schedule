@@ -6,6 +6,16 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-09-29
 
+- **The footer now shows when the committed data last changed.** Ported from the WNBA
+  viewer. It reads "Data as of Sep 11, 4:42 PM" in the selected time zone, next to the
+  live poll's time, now labeled "Live scores checked" so the two are distinguishable. The
+  old "Updated" time only said when the browser last reached ESPN, which stays fresh even
+  when the refresh pipeline has stalled and the schedule, results, and leaders are days
+  old. The stamp lives in `src/data/meta.js`, and `scripts/fetch-schedule.mjs` rewrites it
+  only when a data file or a logo actually changes (`scripts/lib/stamp.mjs` compares each
+  output to what is on disk), so a refresh with nothing new still produces no diff, no
+  commit, and no deploy. Tests read a frozen stamp, and a missing or unparseable stamp
+  shows nothing rather than a wrong date.
 - **CI finishes in about 7 minutes instead of 36 to 39.** The clock rehearsal ran its
   seven future dates one after another, about 310 seconds each, because this repo's
   frozen board puts 92 to 162 game cards on screen for the App tests (the WNBA board
