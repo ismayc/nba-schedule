@@ -173,3 +173,97 @@ describe('playoffRace × scenario engine', () => {
     expect(bos.lockedPlayin).toBe(false)
   })
 })
+
+// `w` beats `l` (the home side wins by default); `open` is a game still to play.
+const beat = (w, l) => game({ home: w, away: l })
+const open = (home, away) => game({ home, away, score: null, tip: '2026-02-01T00:00:00.000Z' })
+const seedIn = (games, abbr) => eastRows(games).find((r) => r.abbr === abbr)
+
+// Reduced from a random late-season board where the Standings tab showed LAC ✓ (play-in)
+// at 36-44 and exact enumeration put it 11th: LAC had banked its series over MEM, the
+// one rival that could only tie it, but HOU could land on 36-44 as well, and the
+// three-team chain (record among the tied) sank LAC. Same shape here at the top-6 line.
+describe('seedRanges: a banked series does not settle a tie a third club can join', () => {
+  // Four contenders sit above BOS for good (PHI leads the Atlantic, so none of BOS,
+  // NY, or BKN is a division leader). BOS is 3-2, done, and beat NY in their only
+  // meeting, so NY (3-2, done) can only tie BOS and that series is banked. BKN (2-2)
+  // beat BOS twice, lost to NY, and still plays IND.
+  const board = () => {
+    const games = []
+    const pool = ['DET', 'ORL', 'WSH', 'CHA', 'IND', 'TOR']
+    for (const c of ['MIL', 'CLE', 'PHI', 'MIA']) for (const p of pool.slice(0, 5)) games.push(beat(c, p))
+    games.push(beat('BOS', 'NY'), beat('BKN', 'BOS'), beat('BKN', 'BOS'), beat('BOS', 'DET'), beat('BOS', 'ORL'))
+    games.push(beat('NY', 'BKN'), beat('NY', 'WSH'), beat('NY', 'CHA'), beat('MIL', 'NY'))
+    games.push(beat('CLE', 'BKN'))
+    return games
+  }
+
+  it('the miss is real: BKN winning out leaves BOS 7th in a three-team tie at 3-2', () => {
+    const final = [...board(), beat('BKN', 'IND')]
+    const at = (abbr) => seedIn(final, abbr)
+    expect(['BOS', 'NY', 'BKN'].map((a) => `${at(a).w}-${at(a).l}`)).toEqual(['3-2', '3-2', '3-2'])
+    // Record among the tied: BKN 2-1, NY 1-1, BOS 1-2. BOS's win over NY is outvoted.
+    expect(at('BOS').seed).toBe(7)
+  })
+
+  it('so BOS has not clinched the top 6: NY stays a threat and the worst seed is 7', () => {
+    const games = [...board(), open('BKN', 'IND')]
+    const rows = eastRows(games)
+    expect(seedRanges(rows, scheduledGames(games), games).BOS.worstRank).toBe(7)
+    const bos = playoffRace(games).find((r) => r.abbr === 'BOS')
+    expect(bos.clinchedTop6).toBe(false)
+    expect(bos.clinched).toBe(true) // the play-in line is still safe
+  })
+
+  it('the discount still applies once no third club can reach the record', () => {
+    // BKN lost to IND: it can no longer reach 3 wins, so a BOS-NY tie can only be a
+    // two-team tie, which head-to-head settles for BOS: NY is not counted, so the worst
+    // seed is 5 (the four contenders), not 6.
+    const games = [...board(), beat('IND', 'BKN')]
+    const rows = eastRows(games)
+    expect(seedRanges(rows, scheduledGames(games), games).BOS.worstRank).toBe(5)
+    expect(playoffRace(games).find((r) => r.abbr === 'BOS').clinchedTop6).toBe(true)
+    expect(seedIn(games, 'BOS').seed).toBe(5)
+  })
+})
+
+// Reduced from a random late-season board where BKN showed top 6 ✓ at 41-39: WSH could
+// only tie BKN and BKN owned that series, while NY (41-38) had one game left against a
+// club outside the race. NY winning it passes BKN; NY LOSING it lands on 41-39 too,
+// and the three-team tie put BKN 7th. The leaf only ever tried NY winning out.
+describe('scenarioClinched: a chaser above the floor can drop onto it', () => {
+  // PHI and CLE lead their divisions from above. BOS, CHI, and MIL play four games
+  // each and beat one another in a cycle; BOS lost to PHI and beat GS (West), so its
+  // conference record is the worst of the three. CHI can only tie BOS, and BOS won
+  // their only meeting.
+  const base = () => [
+    beat('PHI', 'BOS'), beat('PHI', 'WSH'), beat('PHI', 'CHA'),
+    beat('CLE', 'CHI'), beat('CLE', 'IND'), beat('CLE', 'ATL'),
+    beat('BOS', 'CHI'), beat('BOS', 'GS'),
+    beat('CHI', 'MIL'), beat('CHI', 'DET'),
+    beat('MIL', 'ORL'),
+  ]
+
+  it('a banked lone tie is no clinch when a chaser above could drop onto the floor', () => {
+    // MIL (2-1) beat BOS and still plays DEN (West, outside the race). Win it and MIL
+    // passes BOS, leaving one banked tie (CHI) behind PHI, CLE, and MIL: 4th. Lose it
+    // and it is 2-2 with BOS and CHI, where BOS has the worst conference record: 5th.
+    const games = [...base(), beat('MIL', 'BOS'), open('MIL', 'DEN')]
+    const rows = eastRows(games)
+    expect(scenarioClinched('BOS', rows, scheduledGames(games), games, 4)).toBe(false)
+    const lost = [...base(), beat('MIL', 'BOS'), beat('DEN', 'MIL')]
+    expect(['BOS', 'CHI', 'MIL'].map((a) => seedIn(lost, a).w)).toEqual([2, 2, 2])
+    expect(seedIn(lost, 'BOS').seed).toBe(5)
+  })
+
+  it('still clinches when that chaser can only drop by beating the team', () => {
+    // Same records, but MIL's open game is against BOS. The team losing out means
+    // MIL wins it and stays above, so the tie with CHI stays two-team and banked;
+    // if BOS wins instead, BOS finishes 3-1, above CHI and MIL outright.
+    const games = [...base(), beat('MIL', 'DEN'), open('MIL', 'BOS')]
+    const rows = eastRows(games)
+    expect(scenarioClinched('BOS', rows, scheduledGames(games), games, 4)).toBe(true)
+    const lost = [...base(), beat('MIL', 'DEN'), beat('MIL', 'BOS')]
+    expect(seedIn(lost, 'BOS').seed).toBe(4)
+  })
+})

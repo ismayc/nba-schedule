@@ -6,6 +6,21 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-09-29
 
+- **The Standings tab no longer shows a clinched check when three or more teams can
+  still tie.** A team could carry ✓ (top 6, or play-in) and still finish below that line.
+  On random late-season boards, 417 of 3,000 showed a false check, every one at a tie of
+  three or more clubs. Two flaws, one shape. The seed range stopped counting a rival that
+  could only tie the team once the team had won their season series, which holds only for
+  a two-team tie: when a third club can land on the same record, the multi-team chain
+  decides, and that one series proves nothing (LAC 36-44 with a banked series over MEM,
+  sunk to 11th when HOU also finished 36-44). The discount now applies only when no third
+  club can reach that record. The late-season scenario check assumed every chaser wins
+  its games outside the race, but a chaser that loses can drop onto the team's record and
+  turn a banked two-team tie into a three-team tie. It now counts that drop. After the
+  fix: 0 false checks on 6,000 random boards (two seeds, 3,000 each), eliminations
+  unchanged, and about 1 true play-in clinch in 31 (1 top-6 clinch in 19) is held back
+  until it is certain. The same fix landed in the NFL viewer today; the WNBA viewer has
+  had it since September 23.
 - **The footer now shows when the committed data last changed.** Ported from the WNBA
   viewer. It reads "Data as of Sep 11, 4:42 PM" in the selected time zone, next to the
   live poll's time, now labeled "Live scores checked" so the two are distinguishable. The

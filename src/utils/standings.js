@@ -411,8 +411,13 @@ function seriesLedger(games) {
 // One refinement over pure arithmetic: a rival who can only TIE the floor (never
 // strictly pass it) stops counting once the season series between the pair is complete
 // and won — head-to-head is step 1 of the official TWO-team chain, so a banked series
-// settles a two-team tie immutably. (A multi-way tie could still reorder via the
-// division-leader-first multi-team chain — the exotic case this refinement accepts.)
+// settles a two-team tie immutably. It applies only while the tie can be a TWO-team
+// tie: when a third conference club could also land on the team's floor, the
+// multi-team chain decides (division leader first, then the record among all the tied
+// teams), and a series the team won proves nothing there. (This case used to be
+// accepted as exotic; random late-season boards showed a false ✓ on about one board
+// in seven, e.g. LAC 36-44 with a banked series over MEM, sunk to 11th when HOU also
+// finished 36-44.)
 // bestRank stays purely arithmetic, so elimination is never declared off a tiebreaker
 // assumption. bestRank === worstRank therefore means the seed is truly locked.
 export function seedRanges(rows, totals, games) {
@@ -431,10 +436,15 @@ export function seedRanges(rows, totals, games) {
       if (r.floor > b.ceiling) ahead++
       if (r.ceiling > b.floor) couldPass++
       else if (r.ceiling === b.floor) {
-        // Tie-only threat: discounted when the pair's series is finished and ours.
+        // Tie-only threat: discounted when the pair's series is finished and ours, and
+        // no third club's floor-to-ceiling window covers the floor (a tie there is
+        // two-team only; any club that could join it makes it a multi-team tie).
         const e = ledger.get([b.abbr, r.abbr].sort().join('|'))
         const banked = e && e.remaining === 0 && (e.wins[b.abbr] ?? 0) > (e.wins[r.abbr] ?? 0)
-        if (!banked) couldPass++
+        const joinable = bounds.some(
+          (t) => t.abbr !== b.abbr && t.abbr !== r.abbr && t.floor <= b.floor && t.ceiling >= b.floor
+        )
+        if (!banked || joinable) couldPass++
       }
     }
     out[b.abbr] = { bestRank: 1 + ahead, worstRank: 1 + couldPass }

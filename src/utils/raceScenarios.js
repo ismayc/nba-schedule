@@ -10,7 +10,8 @@
 // - CLINCH side only (the play-in cut and the top-6 cut). The ✕ / elimination flags
 //   stay purely arithmetic in standings.js so they never rest on an assumption.
 // - A ONE-rival tie at the team's floor is resolved by the official two-team chain's
-//   step 1 — head-to-head, fully known inside a scenario. A tie of TWO OR MORE
+//   step 1: head-to-head, fully known inside a scenario, but only when no other
+//   chaser could join it (see `free` below). A tie of TWO OR MORE
 //   rivals forms a 3+-way group, and the NBA's multi-team chain leads with
 //   division-leader status — which depends on games outside the enumeration — so
 //   every rival in such a group is charged AGAINST the team. Conservative, never
@@ -65,16 +66,24 @@ export function scenarioClinched(teamAbbr, rows, totals, games, cut, opts = {}) 
   const coupled = remaining.filter((g) => chasers.has(g.home) && chasers.has(g.away))
   if (coupled.length > maxCoupled) return null
 
-  // Adversary-optimal base wins: every chaser wins all of its uncoupled games.
+  // Base wins: every chaser wins all of its uncoupled games. That is each chaser's
+  // HIGHEST finish, but not always the adversary's best: a chaser that could pass the
+  // team may do more harm by landing ON the floor, turning a lone tied rival the team
+  // has beaten into a three-way tie that head-to-head no longer settles. So `free`
+  // keeps how far each chaser can still drop: its uncoupled games against anyone but
+  // the team (games against the team stay losses for the team, as above). Each is a
+  // win or a loss, so every total down to wins - free is reachable.
   const wins = new Map()
+  const free = new Map()
   for (const abbr of chasers) {
     const r = rows.find((x) => x.abbr === abbr)
     const uncoupled = remaining.filter(
       (g) =>
         (g.home === abbr || g.away === abbr) &&
         !(chasers.has(g.home) && chasers.has(g.away))
-    ).length
-    wins.set(abbr, r.w + uncoupled)
+    )
+    wins.set(abbr, r.w + uncoupled.length)
+    free.set(abbr, uncoupled.filter((g) => g.home !== teamAbbr && g.away !== teamAbbr).length)
   }
 
   // Pairwise series ledger between the team and each chaser, for the two-team
@@ -100,20 +109,26 @@ export function scenarioClinched(teamAbbr, rows, totals, games, cut, opts = {}) 
 
   const caughtAtLeaf = () => {
     let ahead = ahead0
+    let canDrop = false // some chaser above the floor could land on it instead
     const tied = []
     for (const abbr of chasers) {
       const w = wins.get(abbr)
-      if (w > floor) ahead++
-      else if (w === floor) tied.push(abbr)
+      if (w > floor) {
+        ahead++
+        if (w - free.get(abbr) <= floor) canDrop = true
+      } else if (w === floor) tied.push(abbr)
     }
     if (ahead >= cut) return true
     if (!tied.length || ahead + tied.length < cut) return false
     if (tied.length === 1) {
       // Two-team tie: official step 1 is head-to-head, and the pair's whole series
-      // is known here. The rival counts ahead unless the team strictly won it.
+      // is known here. The rival counts ahead unless the team strictly won it. A won
+      // series only helps while the tie stays two-team: if a chaser above can drop
+      // onto the floor, the adversary trades that pass for a charged three-way tie,
+      // which is one more rival against the team.
       const e = pairVs.get(tied[0])
       const safe = e && e.team > e.rival
-      return ahead + (safe ? 0 : 1) >= cut
+      return ahead + (safe && !canDrop ? 0 : 1) >= cut
     }
     // Three-plus-way tie: the multi-team chain opens with division-leader status,
     // which the enumeration cannot see — charge every tied rival against the team.
