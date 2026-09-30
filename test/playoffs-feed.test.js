@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { playoffsFromScoreboard } from '../scripts/fetch-schedule.mjs'
+import { playoffsFromScoreboard, gamesFromTeamFeed } from '../scripts/fetch-schedule.mjs'
 
 // The team-schedule feed lags the bracket by days, so play-in and playoff games come
 // from the scoreboard too. Shapes below are trimmed from the real 2026-04-15 (play-in)
@@ -64,5 +64,34 @@ describe('playoffsFromScoreboard', () => {
     expect(playoffsFromScoreboard([tbd, regular, stranger, event()], KNOWN).map((g) => g.id)).toEqual([
       '401869369',
     ])
+  })
+})
+
+// The per-team feed lists an advancing team's next-round game before the opponent is
+// decided, with a negative-id "TBD" side. Those slots must never reach GAMES.
+describe('gamesFromTeamFeed', () => {
+  const feedEvent = (id, home, away, date = '2026-04-21T23:00Z') => ({
+    id,
+    date,
+    seasonType: { id: '2' },
+    competitions: [{ status: { type: { name: 'STATUS_SCHEDULED', completed: false } }, competitors: [home, away] }],
+  })
+  const played = feedEvent('g1', team('5', 'CLE', 'home'), team('28', 'TOR', 'away'))
+
+  it('drops a TBD slot, keeps the real game, and dedupes a game seen in both feeds', () => {
+    const slot = feedEvent('slot', team('-1', 'TBD', 'home'), team('28', 'TOR', 'away'))
+    const slot2 = feedEvent('slot2', team('5', 'CLE', 'home'), team('-2', 'TBD', 'away'))
+    const games = gamesFromTeamFeed([slot, played, slot2, played], KNOWN)
+    expect(games.map((g) => [g.id, g.home, g.away])).toEqual([['g1', 'CLE', 'TOR']])
+  })
+
+  it('drops an event whose real-id sides include an unknown abbreviation', () => {
+    const stranger = feedEvent('x', team('5', 'CLE', 'home'), team('99', 'ZZZ', 'away'))
+    expect(gamesFromTeamFeed([stranger], KNOWN)).toEqual([])
+  })
+
+  it('sorts by tip, then id', () => {
+    const later = feedEvent('a', team('20', 'PHI', 'home'), team('19', 'ORL', 'away'), '2026-04-22T23:00Z')
+    expect(gamesFromTeamFeed([later, played], KNOWN).map((g) => g.id)).toEqual(['g1', 'a'])
   })
 })

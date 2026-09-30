@@ -340,7 +340,22 @@ export async function fetchSchedule(teams, season = SEASON) {
     }
     return seen
   })
-  for (const ev of results.flat()) {
+  return gamesFromTeamFeed(results.flat(), new Set(teams.map((t) => t.abbr)))
+}
+
+// A side ESPN has not filled in yet carries a negative id and abbreviation "TBD" (an
+// advancing team's next-round slot), so it is not a franchise. Requiring a positive id
+// AND a known abbreviation keeps those slots, and any stray non-franchise side, out of GAMES.
+const isRealSide = (t, knownAbbrs) =>
+  Number(t.team?.id) > 0 && knownAbbrs.has(t.team?.abbreviation)
+
+// Team-feed events to games: only events whose competitors are all real sides, deduped by
+// id (each game is in both teams' feeds), sorted by tip then id. Pure, for tests.
+export function gamesFromTeamFeed(events, knownAbbrs) {
+  const byId = new Map()
+  for (const ev of events) {
+    const sides = ev.competitions?.[0]?.competitors || []
+    if (!sides.every((t) => isRealSide(t, knownAbbrs))) continue
     const game = normalizeEvent(ev)
     if (game) byId.set(game.id, game)
   }
@@ -423,10 +438,9 @@ const POSTSEASON_TYPES = { 3: 'playoffs', 5: 'playin' }
 const POSTSEASON_DAYS = 80
 
 export function playoffsFromScoreboard(events, knownAbbrs) {
-  const real = (t) => Number(t.team?.id) > 0 && knownAbbrs.has(t.team?.abbreviation)
   return events
     .filter((ev) => POSTSEASON_TYPES[Number(ev.season?.type)])
-    .filter((ev) => (ev.competitions?.[0]?.competitors || []).every(real))
+    .filter((ev) => (ev.competitions?.[0]?.competitors || []).every((t) => isRealSide(t, knownAbbrs)))
     .map((ev) => normalizeEvent(ev, POSTSEASON_TYPES[Number(ev.season.type)]))
     .filter(Boolean)
 }

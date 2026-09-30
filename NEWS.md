@@ -4,6 +4,19 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-09-30
+
+- **The team-schedule feed can no longer put an undecided playoff slot into the games.**
+  ESPN lists an advancing team's next-round game in that team's own schedule before the
+  opponent is known, with a placeholder side (id -1 or -2, abbreviation TBD). The WNBA
+  viewer hit this on September 29, 2026: the feed fetch passed those slots straight
+  through, and the live-data test "uses only known team abbreviations for real games"
+  failed. The NBA fetch had the same gap (its play-in and playoff reads come from the same
+  feeds), though no slot had landed yet. Every team-feed event now has to have only real
+  franchise sides, matching the guard the scoreboard read already had, and the drift
+  check skips the same placeholder slots. The All-Star games come from the scoreboard and
+  are unaffected.
+
 ## 2026-09-29
 
 - **The Standings tab no longer shows a clinched check when three or more teams can

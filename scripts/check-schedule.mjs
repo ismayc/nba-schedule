@@ -61,6 +61,8 @@ async function fetchLive() {
         const home = c.competitors.find((t) => t.homeAway === 'home')
         const away = c.competitors.find((t) => t.homeAway === 'away')
         if (!home || !away) continue
+        // An unfilled next-round slot has a negative team id ("TBD"); it is not a game yet.
+        if (!(Number(home.team.id) > 0 && Number(away.team.id) > 0)) continue
         const st = c.status?.type || {}
         const num = (v) => Number(v?.value ?? v)
         byId.set(ev.id, {
