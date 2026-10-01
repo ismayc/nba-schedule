@@ -4,6 +4,15 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-10-01
+
+- **`npm run check:schedule` will not report the All-Star games as removed.** They come
+  from the scoreboard (`fetchAllStar`), and no team feed lists them, so once the February
+  2027 events land in the data, every check would have flagged them and exited 1, the
+  same false alarm the WNBA viewer hit on September 30. Reproduced against the live
+  2026-27 feed with one 2025-26 All-Star row injected: 1 REMOVED and exit 1 before the
+  fix, a match and exit 0 after. The check now skips All-Star games.
+
 ## 2026-09-30
 
 - **The team-schedule feed can no longer put an undecided playoff slot into the games.**
