@@ -306,6 +306,11 @@ function normalizeEvent(ev, forcedType) {
     // ESPN emits UTC ("2026-04-19T17:00Z"). Kept as an absolute instant so it can be
     // rendered into any IANA zone — same contract as world-cup-viewer's `ko`.
     tip: new Date(ev.date).toISOString(),
+    // ... EXCEPT when there is no time to emit. `timeValid: false` means ESPN has only
+    // set the DATE, and this is its placeholder for it: midnight ET that day. Stored as
+    // a real instant it becomes a time nobody announced, on the day before the game
+    // anywhere west of Eastern. See sports-viewer-meta/docs/LINEAGES.md §6.
+    timeTbd: c.timeValid === false || undefined,
     seasonType,
     home: home.team.abbreviation,
     away: away.team.abbreviation,
