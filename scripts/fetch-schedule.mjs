@@ -585,6 +585,11 @@ async function seasonSplits(id, season, abbrById) {
     .filter((t) => t.abbr && Number.isFinite(t.gp))
 }
 
+// True unless the byathlete payload names a different season than the one requested. A
+// payload without `requestedSeason` is taken at its word, as it always was.
+export const servesSeason = (payload, season) =>
+  payload?.requestedSeason?.year == null || String(payload.requestedSeason.year) === String(season)
+
 export async function fetchLeaders(season = SEASON, teams) {
   // teamId → our abbreviation, so the splits (which identify a team by id + slug) resolve
   // to the same strings teams.js uses — "UTAH", not whatever the splits payload spells.
@@ -598,6 +603,14 @@ export async function fetchLeaders(season = SEASON, teams) {
       `${WEB}/statistics/byathlete?region=us&lang=en&season=${season}&seasontype=2&limit=300&page=${page}`
     )
     pages = d.pagination?.pages ?? 1
+    // Before a season's first stats are posted, ESPN answers season=2027 with the PREVIOUS
+    // season's board and says so only in `requestedSeason` (2026-10-20, opening night: Doncic
+    // at 64 games under a 2026-27 label). Serving that as this season's leaders is wrong, so
+    // an off-season payload yields no players until the real ones exist.
+    if (!servesSeason(d, season)) {
+      console.warn(`  byathlete answered season ${d.requestedSeason.year}, not ${season}; no players yet`)
+      return []
+    }
 
     // ESPN stat name → [category NAME, valueIndex], from the top-level column
     // definitions. The category is resolved by name per athlete rather than by

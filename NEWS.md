@@ -4,6 +4,16 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-10-20
+
+- **The Stats tab no longer shows last season's leaders under the 2026-27 label.** On
+  opening night, ESPN's player-stats feed, asked for season 2027, returned the 2025-26
+  board (Luka Doncic at 64 games) and flagged it only in `requestedSeason.year: 2026`.
+  The fetcher now commits no players when the feed answers with a different season, and
+  the League leaders card says "No player stats yet this season" until ESPN posts the new
+  numbers. Team rosters and the game-detail top scorers had the same stale numbers and now
+  stay hidden until then. The 2025-26 boards remain in the History tab.
+
 ## 2026-10-03
 
 - **A failed issue call no longer turns a fresh data-freshness run red.** At 21:47 UTC

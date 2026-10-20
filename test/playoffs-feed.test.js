@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { playoffsFromScoreboard, gamesFromTeamFeed } from '../scripts/fetch-schedule.mjs'
+import { playoffsFromScoreboard, gamesFromTeamFeed, servesSeason } from '../scripts/fetch-schedule.mjs'
+
+// On 2026-10-20 (opening night) byathlete?season=2027 returned the 2025-26 board, flagged
+// only by requestedSeason.year 2026 while currentSeason.year read 2027.
+describe('servesSeason', () => {
+  it('rejects a payload that answers with another season', () => {
+    expect(servesSeason({ requestedSeason: { year: 2026 }, currentSeason: { year: 2027 } }, 2027)).toBe(false)
+  })
+  it('accepts the season asked for, number or string', () => {
+    expect(servesSeason({ requestedSeason: { year: 2027 } }, 2027)).toBe(true)
+    expect(servesSeason({ requestedSeason: { year: 2026 } }, '2026')).toBe(true)
+  })
+  it('takes a payload without requestedSeason at its word', () => {
+    expect(servesSeason({}, 2027)).toBe(true)
+  })
+})
 
 // The team-schedule feed lags the bracket by days, so play-in and playoff games come
 // from the scoreboard too. Shapes below are trimmed from the real 2026-04-15 (play-in)

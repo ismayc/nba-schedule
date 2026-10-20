@@ -192,6 +192,13 @@ describe('StatsView leaders', () => {
     expect(onPickTeam).toHaveBeenCalledWith('IND')
   })
 
+  // Opening night commits no players (fetchLeaders refuses last season's board), so the
+  // card says so instead of rendering an empty table.
+  it('says there are no stats yet when the season has no players', () => {
+    const { container } = render(<Leaders getRows={() => leaderboard('avgPoints', { players: [] })} />)
+    expect(screen.getByText(/No player stats yet this season/)).toBeInTheDocument()
+    expect(container.querySelectorAll('.leaders tr')).toHaveLength(0)
+  })
 })
 
 describe('ScheduleView', () => {
