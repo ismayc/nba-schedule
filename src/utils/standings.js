@@ -3,6 +3,7 @@
 
 import { TEAMS, TEAM_BY_ABBR } from '../data/teams.js'
 import { scenarioClinched } from './raceScenarios.js'
+import { LEAGUE } from '../config/league.js'
 
 export const CONFERENCES = { E: 'Eastern Conference', W: 'Western Conference' }
 
@@ -355,13 +356,22 @@ export function conferenceStandings(games) {
 
 // ── Playoff race ─────────────────────────────────────────────────────────────
 // Total regular-season games each team plays, from the schedule itself rather than a
-// hard-coded 82 — makeup games and cancellations move this number.
-export function scheduledGames(games) {
+// hard-coded 82 — makeup games and cancellations move this number. `seasonGames` tops up
+// a team whose schedule is at most `lateGames` short of a full season (the two NBA Cup
+// games per team added in December); a canceled game still lowers it, since it will
+// never be played.
+export function scheduledGames(games, seasonGames = 0, lateGames = 0) {
   const total = {}
+  const canceled = {}
   for (const g of games) {
-    if (g.seasonType !== 'regular' || g.postponed || g.canceled) continue
-    total[g.home] = (total[g.home] || 0) + 1
-    total[g.away] = (total[g.away] || 0) + 1
+    if (g.seasonType !== 'regular' || g.postponed) continue
+    const into = g.canceled ? canceled : total
+    into[g.home] = (into[g.home] || 0) + 1
+    into[g.away] = (into[g.away] || 0) + 1
+  }
+  for (const abbr of Object.keys(total)) {
+    const full = seasonGames - (canceled[abbr] || 0)
+    if (total[abbr] >= full - lateGames) total[abbr] = Math.max(total[abbr], full)
   }
   return total
 }
@@ -454,7 +464,7 @@ export function seedRanges(rows, totals, games) {
 
 export function playoffRace(games) {
   const byConf = conferenceStandings(games)
-  const totals = scheduledGames(games)
+  const totals = scheduledGames(games, LEAGUE.seasonGames, LEAGUE.lateGames)
   const out = []
 
   for (const conf of ['E', 'W']) {

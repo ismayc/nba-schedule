@@ -13,7 +13,9 @@ import {
   CONFERENCE_BY_ABBR,
   DIVISION_BY_ABBR,
   PLAYOFF_SPOTS,
+  scheduledGames,
 } from '../src/utils/standings.js'
+import { GAMES_2627_PRESEASON } from './fixtures/preseason-2627.js'
 import { TEAMS } from '../src/data/teams.js'
 import { HISTORY_BY_YEAR } from '../src/data/history.js'
 
@@ -540,5 +542,31 @@ describe('the archived 2025-26 season and the live race', () => {
       // No team can be both safe and out.
       expect(r.clinched && r.eliminated).toBe(false)
     }
+  })
+})
+
+// The NBA releases 80 games per team and adds the last two after the Cup group stage
+// (early December), so before then the schedule alone undercounts the season.
+describe('scheduledGames before the NBA Cup games are added', () => {
+  it('counts the opening-night board as 82 games each, not 80', () => {
+    expect(new Set(Object.values(scheduledGames(GAMES_2627_PRESEASON)))).toEqual(new Set([80]))
+    expect(new Set(Object.values(scheduledGames(GAMES_2627_PRESEASON, 82, 2)))).toEqual(new Set([82]))
+  })
+
+  it('lets a canceled game lower the full-season floor', () => {
+    const first = GAMES_2627_PRESEASON.find((g) => g.home === 'BOS' || g.away === 'BOS')
+    const g = GAMES_2627_PRESEASON.map((x) => (x === first ? { ...x, canceled: true } : x))
+    const other = first.home === 'BOS' ? first.away : first.home
+    expect(scheduledGames(g, 82, 2)).toMatchObject({ BOS: 81, [other]: 81, NY: 82 })
+  })
+
+  it('leaves a schedule more than two games short as scheduled', () => {
+    expect(scheduledGames(wins('BOS', 'NY', 3), 82, 2)).toEqual({ BOS: 3, NY: 3 })
+  })
+
+  it('shows 82 left and a magic number of 83 for every 0-0 team on opening night', () => {
+    const race = playoffRace(GAMES_2627_PRESEASON)
+    expect(new Set(race.map((r) => r.remaining))).toEqual(new Set([82]))
+    expect(new Set(race.filter((r) => r.seed <= 10).map((r) => r.magic))).toEqual(new Set([83]))
   })
 })

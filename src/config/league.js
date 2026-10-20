@@ -57,6 +57,14 @@ export const LEAGUE = {
   // "Close finish" threshold. Five points is the NBA's own clutch-time definition and
   // the convention the basketball siblings follow; the NFL uses 8, one score in football.
   closeMargin: 5,
+  // Games each team plays in a full regular season. The schedule alone undercounts it from
+  // opening night to early December: the NBA releases 80 games per team and adds the last
+  // two once the Cup group stage settles who plays whom. A shortened season (2020-21 had
+  // 72) changes this number.
+  seasonGames: 82,
+  // How many of those games can be missing from the released schedule. Only a team within
+  // this many games of a full season is topped up, so a partial board stays as scheduled.
+  lateGames: 2,
 
   // ── Time ────────────────────────────────────────────────────────────────────
   locale: 'en-US',

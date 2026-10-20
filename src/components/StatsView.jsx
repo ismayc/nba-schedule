@@ -216,17 +216,17 @@ export function MarginChart({ rows, onPickTeam }) {
       <div className="margin" role="table" aria-label="Team scoring margin per game">
         {rows.map((r) => {
           const pos = r.netPpg >= 0
-          // Each arm gets 40% of the track, leaving room for the direct label to sit
-          // beyond the longest bar without colliding with the next column.
-          const width = (Math.abs(r.netPpg) / span) * 40
+          // The bar's share of the longest bar; CSS turns it into a length that leaves
+          // room for the direct label past the longest bar at any track width.
+          const share = Math.abs(r.netPpg) / span
           return (
             <div className="margin-row" key={r.abbr} role="row">
               <button className="margin-team" onClick={() => onPickTeam?.(r.abbr)} role="cell">
                 <TeamLogo abbr={r.abbr} size={22} />
                 <span>{r.team.name}</span>
               </button>
-              {/* --w lives on the track so the bar AND its label can both read it. */}
-              <div className="margin-track" role="cell" style={{ '--w': `${width}%` }}>
+              {/* --share lives on the track so the bar AND its label can both read it. */}
+              <div className="margin-track" role="cell" style={{ '--share': share }}>
                 <span className="margin-zero" />
                 <span className={`margin-bar ${pos ? 'pos' : 'neg'}`} />
                 <span className={`margin-label ${pos ? 'pos' : 'neg'}`}>

@@ -6,6 +6,16 @@ data/source updates, deployment). Newest day on top.
 
 ## 2026-10-20
 
+- **The Playoff race counts 82 games, not 80, before the NBA Cup games are scheduled.**
+  The NBA releases 80 games per team and adds the last two after the Cup group stage, so
+  on opening night "Left" read 80 and every magic number was 2 short (81 at 0-0, not 83).
+  A team whose schedule is within those 2 games of a full season is now counted at 82,
+  less any canceled game. The full-season count is `seasonGames` in `src/config/league.js`.
+- **Scoring margin labels no longer run into their bars on narrow cards.** The label's
+  position was capped to stay inside the card, but the bar was not, so in the two-column
+  desktop layout the longest bars ran under their own labels. Bars now scale to the space
+  left after the label at any width, which also replaces the separate phone-width shrink.
+
 - **The Stats tab no longer shows last season's leaders under the 2026-27 label.** On
   opening night, ESPN's player-stats feed, asked for season 2027, returned the 2025-26
   board (Luka Doncic at 64 games) and flagged it only in `requestedSeason.year: 2026`.

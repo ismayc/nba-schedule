@@ -1735,9 +1735,10 @@ button.drill-row:hover {
   position: absolute;
   top: 4px;
   height: 10px;
-  /* --arm-scale shrinks the arms on a narrow track so the value label always clears
-     the longest bar; it's 1 on desktop (see the mobile override). */
-  width: calc(var(--w) * var(--arm-scale, 1));
+  /* The longest arm is half the track less the label reserve below, so its value label
+     always fits past it; a fixed percentage ran into the label on narrow tracks (the
+     two-column desktop layout as well as phones). */
+  width: calc(var(--share, 0) * (50% - 40px));
 }
 
 .margin-bar.pos {
@@ -1761,15 +1762,15 @@ button.drill-row:hover {
   color: var(--text-dim);
 }
 
-/* Anchored past the end of its own bar, reading the same --w the bar does, but
-   clamped so a long bar in a narrow track can't push the label out of the card.
-   The reserve matches the widest label ("−10.0"). */
+/* Anchored 6px past the end of its own bar, reading the same --share the bar does. The
+   longest bar's label starts at 100% - 34px, a reserve that fits the widest label
+   ("−10.0"). */
 .margin-label.pos {
-  left: min(calc(50% + var(--w, 0%) * var(--arm-scale, 1) + 6px), calc(100% - 34px));
+  left: calc(50% + var(--share, 0) * (50% - 40px) + 6px);
 }
 
 .margin-label.neg {
-  right: min(calc(50% + var(--w, 0%) * var(--arm-scale, 1) + 6px), calc(100% - 34px));
+  right: calc(50% + var(--share, 0) * (50% - 40px) + 6px);
 }
 
 .margin-split {
@@ -4029,12 +4030,6 @@ button.drill-row:hover {
 
   .margin-split {
     display: none;
-  }
-
-  /* The track is much narrower now, so shrink the arms to keep the longest bar's value
-     label (a top or bottom team's margin, e.g. "+8.6" / "−10.0") from overrunning it. */
-  .margin {
-    --arm-scale: 0.68;
   }
 
   .tiles {
