@@ -2,7 +2,7 @@
 // Source: https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{abbr}/schedule?season=2027
 
 export const GAMES = [
-  {"id":"401909088","tip":"2026-10-20T19:00:00.000Z","seasonType":"regular","home":"DET","away":"BOS","venue":"Little Caesars Arena","city":"Detroit","state":"MI","broadcast":["NBC"]},
+  {"id":"401909088","tip":"2026-10-20T19:00:00.000Z","seasonType":"regular","home":"DET","away":"BOS","venue":"Little Caesars Arena","city":"Detroit","state":"MI","broadcast":["NBC"],"score":[121,113],"line":{"home":[27,18,37,39],"away":[28,30,30,25]},"stars":[{"cat":"points","v":"22","who":"J. Duren","team":"DET"},{"cat":"rebounds","v":"11","who":"A. Thompson","team":"DET"},{"cat":"assists","v":"8","who":"C. Cunningham","team":"DET"},{"cat":"points","v":"38","who":"P. George","team":"BOS"},{"cat":"rebounds","v":"6","who":"J. Walsh","team":"BOS"},{"cat":"assists","v":"11","who":"J. Tatum","team":"BOS"}]},
   {"id":"401909089","tip":"2026-10-20T23:00:00.000Z","seasonType":"regular","home":"NY","away":"PHI","venue":"Madison Square Garden","city":"New York","state":"NY","broadcast":["NBC"]},
   {"id":"401909090","tip":"2026-10-21T01:30:00.000Z","seasonType":"regular","home":"SA","away":"OKC","venue":"Frost Bank Center","city":"San Antonio","state":"TX","broadcast":["NBC"]},
   {"id":"401909834","tip":"2026-10-21T23:00:00.000Z","seasonType":"regular","home":"ORL","away":"ATL","venue":"Kia Center","city":"Orlando","state":"FL","broadcast":["NBA League Pass"]},
