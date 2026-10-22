@@ -386,7 +386,7 @@ export const GAMES = [
   {"id":"401910146","tip":"2026-12-20T00:00:00.000Z","seasonType":"regular","home":"ATL","away":"ORL","venue":"State Farm Arena","city":"Atlanta","state":"GA"},
   {"id":"401910147","tip":"2026-12-20T01:00:00.000Z","seasonType":"regular","home":"DAL","away":"CHI","venue":"American Airlines Center","city":"Dallas","state":"TX","broadcast":["KFAA-TV","MavsTV"]},
   {"id":"401910148","tip":"2026-12-20T02:00:00.000Z","seasonType":"regular","home":"DEN","away":"LAL","venue":"Ball Arena","city":"Denver","state":"CO","broadcast":["NBA TV","Spectrum Sports Net","Spectrum Sports Net +"]},
-  {"id":"401910149","tip":"2026-12-20T20:00:00.000Z","seasonType":"regular","home":"BKN","away":"WSH","venue":"Barclays Center","city":"Brooklyn","state":"NY","broadcast":["DAZN (YES)"]},
+  {"id":"401910149","tip":"2026-12-20T20:00:00.000Z","seasonType":"regular","home":"BKN","away":"WSH","venue":"Barclays Center","city":"Brooklyn","state":"NY","broadcast":["DAZN (YES)","MNMT"]},
   {"id":"401910150","tip":"2026-12-20T20:30:00.000Z","seasonType":"regular","home":"TOR","away":"HOU","venue":"Scotiabank Arena","city":"Toronto","state":"ON"},
   {"id":"401910151","tip":"2026-12-20T21:00:00.000Z","seasonType":"regular","home":"MEM","away":"PHX","venue":"FedExForum","city":"Memphis","state":"TN","broadcast":["Suns Live","DAZN MEM","Arizona's Family 3TV"]},
   {"id":"401910152","tip":"2026-12-20T23:00:00.000Z","seasonType":"regular","home":"CLE","away":"UTAH","venue":"Rocket Arena","city":"Cleveland","state":"OH","broadcast":["DAZN CLE","KJZZ-TV","Jazz+"]},
