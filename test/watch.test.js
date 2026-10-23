@@ -70,6 +70,20 @@ describe('watchableServices', () => {
   })
 })
 
+describe('network name case', () => {
+  it('matches a network whatever case ESPN spells it in', () => {
+    const keys = ['youtubetv', 'disney']
+    const asWritten = labels(['ESPN'], keys)
+    expect(asWritten).toEqual(['Disney+ / ESPN+', 'YouTube TV'])
+    expect(labels(['espn'], keys)).toEqual(asWritten)
+    expect(labels(['Espn'], keys)).toEqual(asWritten)
+    // A different-case national name is still national, not a local feed.
+    expect(localChannelCatalog([{ home: 'AAA', away: 'BBB', broadcast: ['espn', 'nbc'] }])).toEqual([])
+    // A different-case name is still the badge already shown.
+    expect(broadcastNotBadged(['PEACOCK', 'NBC'], [{ label: 'Peacock' }])).toEqual(['NBC'])
+  })
+})
+
 describe('broadcastNotBadged', () => {
   const svc = (label) => ({ label })
 
