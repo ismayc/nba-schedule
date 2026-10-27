@@ -429,7 +429,7 @@ export const GAMES = [
   {"id":"401909099","tip":"2026-12-25T22:00:00.000Z","seasonType":"regular","home":"LAL","away":"PHI","venue":"crypto.com Arena","city":"Los Angeles","state":"CA","broadcast":["ABC","ESPN"]},
   {"id":"401909100","tip":"2026-12-26T01:00:00.000Z","seasonType":"regular","home":"MIN","away":"OKC","venue":"Target Center","city":"Minneapolis","state":"MN","broadcast":["ABC","ESPN"]},
   {"id":"401909101","tip":"2026-12-26T03:30:00.000Z","seasonType":"regular","home":"GS","away":"DEN","venue":"Chase Center","city":"San Francisco","state":"CA","broadcast":["ABC","ESPN"]},
-  {"id":"401910187","tip":"2026-12-26T18:00:00.000Z","seasonType":"regular","home":"WSH","away":"POR","venue":"Capital One Arena","city":"Washington","state":"DC","broadcast":["NBA TV","KUNP 16","BlazerVision"]},
+  {"id":"401910187","tip":"2026-12-26T18:00:00.000Z","seasonType":"regular","home":"WSH","away":"POR","venue":"Capital One Arena","city":"Washington","state":"DC","broadcast":["NBA TV","KUNP 16","BlazerVision","MNMT"]},
   {"id":"401910188","tip":"2026-12-26T20:30:00.000Z","seasonType":"regular","home":"ATL","away":"CHA","venue":"State Farm Arena","city":"Atlanta","state":"GA"},
   {"id":"401910189","tip":"2026-12-26T22:00:00.000Z","seasonType":"regular","home":"UTAH","away":"IND","venue":"Delta Center","city":"Salt Lake City","state":"UT","broadcast":["KJZZ-TV","Jazz+","DAZN IND"]},
   {"id":"401910190","tip":"2026-12-26T23:00:00.000Z","seasonType":"regular","home":"BKN","away":"NO","venue":"Barclays Center","city":"Brooklyn","state":"NY","broadcast":["DAZN (YES)","GCSEN","Pelicans.com"]},
