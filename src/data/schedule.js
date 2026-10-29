@@ -438,7 +438,7 @@ export const GAMES = [
   {"id":"401910193","tip":"2026-12-27T01:00:00.000Z","seasonType":"regular","home":"DAL","away":"PHX","venue":"American Airlines Center","city":"Dallas","state":"TX","broadcast":["NBA TV","KFAA-TV","MavsTV","Arizona's Family 3TV","Suns Live"]},
   {"id":"401910194","tip":"2026-12-27T03:30:00.000Z","seasonType":"regular","home":"LAC","away":"MEM","venue":"Intuit Dome","city":"Inglewood","state":"CA","broadcast":["ClipperVision","DAZN MEM"]},
   {"id":"401910195","tip":"2026-12-27T20:30:00.000Z","seasonType":"regular","home":"HOU","away":"OKC","venue":"Toyota Center (Houston)","city":"Houston","state":"TX","broadcast":["KSBI","Thunder App"]},
-  {"id":"401910196","tip":"2026-12-27T23:00:00.000Z","seasonType":"regular","home":"CLE","away":"WSH","venue":"Rocket Arena","city":"Cleveland","state":"OH","broadcast":["DAZN CLE"]},
+  {"id":"401910196","tip":"2026-12-27T23:00:00.000Z","seasonType":"regular","home":"CLE","away":"WSH","venue":"Rocket Arena","city":"Cleveland","state":"OH","broadcast":["DAZN CLE","MNMT"]},
   {"id":"401910197","tip":"2026-12-27T23:00:00.000Z","seasonType":"regular","home":"MIA","away":"CHA","venue":"Kaseya Center","city":"Miami","state":"FL"},
   {"id":"401910198","tip":"2026-12-27T23:00:00.000Z","seasonType":"regular","home":"NY","away":"BKN","venue":"Madison Square Garden","city":"New York","state":"NY","broadcast":["DAZN (YES)"]},
   {"id":"401910199","tip":"2026-12-27T23:00:00.000Z","seasonType":"regular","home":"ORL","away":"MIL","venue":"Kia Center","city":"Orlando","state":"FL","broadcast":["MyMi","Bucks App"]},
