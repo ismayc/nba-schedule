@@ -95,6 +95,20 @@ describe('GameCard coverage', () => {
     expect(screen.getByText('Final')).toBeInTheDocument()
   })
 
+  // The OT tag, final or live, says the game was tied after regulation.
+  it('shows no overtime and no live period in spoiler-free mode', () => {
+    const { container, unmount } = wrap({ ...base, ot: 2 }, { hideScores: true })
+    expect(container.querySelector('.final-badge').textContent).toBe('Final')
+    unmount()
+    const { container: c1 } = wrap(
+      { ...base, score: undefined, live: true, period: 5, statusLabel: 'OT 5:12' },
+      { hideScores: true }
+    )
+    const badge = c1.querySelector('.live-badge')
+    expect(badge.textContent.trim()).toBe('● LIVE')
+    expect(badge.getAttribute('title')).not.toMatch(/OT/)
+  })
+
   it('shows just the venue when no city is present', () => {
     const { container } = wrap({ ...base, city: undefined })
     expect(container.querySelector('.game-meta').textContent).toContain('Paycom Center')
