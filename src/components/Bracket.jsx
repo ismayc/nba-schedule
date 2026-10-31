@@ -33,23 +33,22 @@ const ROUND_SHORT = { R1: '1st Round', CSF: 'Conf. Semis', CF: 'Conf. Finals', F
 // you'd naturally click to ask "what happened in game 5?". Hollow dots are games that
 // don't exist (a series that ended in five has two of them), so they stay inert.
 //
-// In spoiler-free mode a played dot stays a neutral handle onto its game: no win/loss
-// colour and no score in its label.
+// In spoiler-free mode every dot is hollow and inert: a count of played games says how
+// long the series ran, and so whether it is over. The games stay reachable from the
+// schedule.
 function SeriesDots({ series, team, onOpen, hideScores }) {
-  const played = series.games.filter((g) => g.score)
+  const played = hideScores ? [] : series.games.filter((g) => g.score)
   return (
     <span className="dots">
       {Array.from({ length: series.bestOf }, (_, i) => {
         const g = played[i]
         if (!g) return <i key={i} className="dot-empty" aria-hidden="true" />
         const winner = g.score[0] > g.score[1] ? g.home : g.away
-        const cls = hideScores ? 'dot-played' : winner === team ? 'dot-w' : 'dot-l'
+        const cls = winner === team ? 'dot-w' : 'dot-l'
         const n = g.game ?? i + 1
-        const label = hideScores
-          ? `Game ${n}`
-          : `Game ${n}: ${TEAM_BY_ABBR[g.away]?.name} ${g.score[1]}, ${
-              TEAM_BY_ABBR[g.home]?.name
-            } ${g.score[0]}`
+        const label = `Game ${n}: ${TEAM_BY_ABBR[g.away]?.name} ${g.score[1]}, ${
+          TEAM_BY_ABBR[g.home]?.name
+        } ${g.score[0]}`
         return (
           <button
             key={i}
@@ -131,7 +130,7 @@ function Series({ series, onPick, tz, onOpen, hideScores }) {
       <div className="bx-foot">
         <span className="bx-bo">Best of {series.bestOf}</span>
         {series.games.length > 0 && <SeriesDots series={series} team={a} onOpen={onOpen} hideScores={hideScores} />}
-        {next && <span className="bx-next">Game {next.game} · {formatDate(next.tip, tz)}</span>}
+        {next && !hideScores && <span className="bx-next">Game {next.game} · {formatDate(next.tip, tz)}</span>}
         {series.live && <span className="bx-live">● LIVE</span>}
       </div>
     </div>
