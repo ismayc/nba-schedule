@@ -266,6 +266,43 @@ export function buildBracket(games, standings) {
   }
 }
 
+// Spoiler-free mode: the same bracket with every result taken out. A series keeps its
+// games (so its dots and next tip still show) but loses its win counts, its winner and
+// loser, and its "done" state. A later-round slot is filled only because a team WON its
+// way there, so CSF, CF, and the Finals drop their teams and show their feeder labels.
+// So does a first-round 7 or 8 seed once the play-in has been played, since that team
+// got there by winning a play-in game; before then the slot holds the standings seed.
+const stripResult = (s, order) => ({
+  ...s,
+  order,
+  wins: {},
+  winner: null,
+  loser: null,
+  complete: false,
+})
+
+export function blindBracket(bracket) {
+  const { conferences, final, playInResults } = bracket
+  const blindConf = (c) => {
+    const viaPlayIn = playInResults[c.conf].played
+    return {
+      ...c,
+      r1: c.r1.map((s) =>
+        stripResult(s, viaPlayIn && !s.projected && s.seeds[1] >= 7 ? [s.order[0]] : s.order)
+      ),
+      csf: c.csf.map((s) => stripResult(s, [])),
+      cf: stripResult(c.cf, []),
+      champion: null,
+    }
+  }
+  return {
+    ...bracket,
+    conferences: { E: blindConf(conferences.E), W: blindConf(conferences.W) },
+    final: stripResult(final, []),
+    champion: null,
+  }
+}
+
 // ── Radial geometry ──────────────────────────────────────────────────────────
 // Kept here rather than in the component so it can be tested without a DOM. The WHOLE
 // bracket is one wheel: West fills the LEFT half, East fills the RIGHT half, and the two

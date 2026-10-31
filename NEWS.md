@@ -4,6 +4,20 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-10-31
+
+- **Spoiler-free mode keeps only the tipoff alert.** Lead-change, close-finish, and final
+  alerts say who leads, how close it is, or who won, so with scores hidden only the
+  tipoff alert shows.
+- **The playoff brackets hide results in spoiler-free mode.** The bracket and the
+  circular bracket show no series wins, no winner or loser styling, no scored game dots,
+  no play-in outcomes, and no champion. A later-round slot that a team won its way into
+  shows its feeder label ("Winner 1/8") instead. The NBA Cup note shows the matchup, not
+  the winner. Past seasons in History are unchanged.
+- **A close finish in overtime now says "in overtime".** The close-finish alert said "in
+  the fourth" for every period from the fourth on. It now says "in the fourth quarter"
+  or "in overtime".
+
 ## 2026-10-29
 
 - **Spoiler-free mode no longer gives away overtime.** With scores hidden, a final still

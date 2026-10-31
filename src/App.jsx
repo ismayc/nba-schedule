@@ -32,7 +32,7 @@ import PlayerModal from './components/PlayerModal.jsx'
 import ServicesModal from './components/ServicesModal.jsx'
 import HistoryView from './components/HistoryView.jsx'
 import { HISTORY_BY_YEAR } from './data/history.js'
-import { detectEvents, eventKey } from './services/alerts.js'
+import { detectEvents, eventKey, spoilerSafe } from './services/alerts.js'
 import TeamLogo from './components/TeamLogo.jsx'
 import FooterTimes from './components/FooterTimes.jsx'
 import { LEAGUE } from './config/league.js'
@@ -230,9 +230,12 @@ export default function App() {
     prevGames.current = games
     if (!prev || !alerts) return
 
-    const found = detectEvents(prev, games, {
-      teams: onlyFollowed || followedCount ? followed : null,
-    })
+    const found = spoilerSafe(
+      detectEvents(prev, games, {
+        teams: onlyFollowed || followedCount ? followed : null,
+      }),
+      hideScores
+    )
     if (!found.length) return
 
     setToasts((cur) => {
@@ -241,7 +244,7 @@ export default function App() {
       // Newest first, and never more than a handful on screen at once.
       return [...fresh, ...cur].slice(0, 4)
     })
-  }, [games, alerts, followed, followedCount, onlyFollowed])
+  }, [games, alerts, followed, followedCount, onlyFollowed, hideScores])
 
   // Toasts retire on their own; a lingering stack would bury the page.
   useEffect(() => {
@@ -676,10 +679,10 @@ export default function App() {
         )}
         {view === 'standings' && <StandingsView games={games} race={race} onPick={pickTeam} />}
         {view === 'playoffs' && (
-          <Bracket games={games} tz={tz} onPick={pickTeam} onOpen={setDetail} />
+          <Bracket games={games} tz={tz} onPick={pickTeam} onOpen={setDetail} hideScores={hideScores} />
         )}
         {view === 'radial' && (
-          <RadialBracket games={games} onPick={pickTeam} />
+          <RadialBracket games={games} onPick={pickTeam} hideScores={hideScores} />
         )}
         {view === 'stats' && (
           <StatsView
@@ -704,7 +707,7 @@ export default function App() {
       </main>
 
       <Toasts
-        events={toasts}
+        events={spoilerSafe(toasts, hideScores)}
         onOpen={(g) => setDetail(g)}
         onDismiss={(key) => setToasts((cur) => cur.filter((t) => t.key !== key))}
       />

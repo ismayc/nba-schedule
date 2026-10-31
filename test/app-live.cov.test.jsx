@@ -250,6 +250,33 @@ describe('live alerts fire toasts', () => {
     expect(stack).toHaveTextContent('Tipoff')
   })
 
+  it('keeps the tipoff but drops the final toast in spoiler-free mode', async () => {
+    localStorage.setItem('nba:alerts', '1')
+    localStorage.setItem('nba:spoilerFree', '1')
+    let release
+    const gate = new Promise((r) => { release = r })
+    let calls = 0
+    fetch.mockImplementation(async () => {
+      calls += 1
+      if (calls <= 3) return scoreboard([liveEvent()])
+      await gate
+      return scoreboard([finalEvent()])
+    })
+
+    mount()
+    const stack = await screen.findByRole('status', {}, { timeout: 10_000 })
+    expect(stack).toHaveTextContent('Tipoff')
+    release()
+    // Wait for the poll that carries the final to land, then check that no final
+    // toast (which names the winner and the score) joined the tipoff.
+    await waitFor(() => expect(calls).toBeGreaterThan(3), { timeout: 10_000 })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 300))
+    })
+    expect(stack).toHaveTextContent('Tipoff')
+    expect(stack).not.toHaveTextContent('Final')
+  })
+
   it('drops a poll that lands after the effect was torn down', async () => {
     // Hold the poll open, unmount (which aborts), then let the fetch settle. The
     // guard must swallow the result rather than set state on a dead tree.

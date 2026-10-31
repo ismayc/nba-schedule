@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { buildBracket, layout, polar, CENTER, RING } from '../utils/bracket.js'
+import { buildBracket, blindBracket, layout, polar, CENTER, RING } from '../utils/bracket.js'
 import { TEAM_BY_ABBR } from '../data/teams.js'
 import { useFollow } from '../context/follow.jsx'
 import TeamLogo from './TeamLogo.jsx'
@@ -104,8 +104,13 @@ function Side({ geo, data, seeds, hover, setHover, onPick }) {
   )
 }
 
-export default function RadialBracket({ games, onPick }) {
-  const bracket = useMemo(() => buildBracket(games), [games])
+export default function RadialBracket({ games, onPick, hideScores = false }) {
+  // Spoiler-free mode reuses the bar bracket's blinding: no winner fills an inner ring
+  // and no champion takes the centre. The outer ring is the seeding, which stays.
+  const bracket = useMemo(() => {
+    const built = buildBracket(games)
+    return hideScores ? blindBracket(built) : built
+  }, [games, hideScores])
   const geo = useMemo(layout, [])
   const [hover, setHover] = useState(null)
 
