@@ -33,6 +33,23 @@ describe('watchableServices', () => {
     expect(labels(['NBC', 'Peacock'], ['youtubetv', 'peacock'])).toEqual(['Peacock', 'YouTube TV'])
   })
 
+  it('counts NBC and NBCSN games as watchable on Peacock (every NBC Sports game streams there)', () => {
+    // ESPN tags these games only "NBC" or "NBCSN", never "Peacock".
+    expect(labels(['NBC'], ['peacock'])).toEqual(['Peacock'])
+    expect(labels(['NBCSN'], ['peacock'])).toEqual(['Peacock'])
+    expect(labels(['nbcsn'], ['peacock'])).toEqual(['Peacock'])
+  })
+
+  it('carries NBCSN on the bundles that list it, and not on the ones that do not', () => {
+    expect(labels(['NBCSN'], ['youtubetv', 'hulu', 'fubo', 'sling', 'cable'])).toEqual([
+      'YouTube TV',
+      'Fubo',
+      'Cable / Satellite',
+    ])
+    // A national cable channel, so it never lands in the local-channel picker.
+    expect(localChannelCatalog([{ home: 'AAA', away: 'BBB', broadcast: ['NBCSN'] }])).toEqual([])
+  })
+
   it('lists ALL of a viewer’s many services that carry the game — never capped', () => {
     // A viewer with more services than average, on a nationally-televised (ESPN) game:
     // every bundle/service that carries ESPN is returned, not a truncated subset.

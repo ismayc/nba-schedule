@@ -4,7 +4,17 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
-## 2026-10-31
+## 2026-11-01
+
+- **Peacock now counts NBC and NBCSN games as watchable.** NBC Sports says every NBA
+  game it presents streams live on Peacock, but ESPN tags those games only "NBC" or
+  "NBCSN", so a Peacock subscriber saw 100 of this season's games as on no service.
+- **NBCSN joins YouTube TV, Fubo, and cable.** The relaunched NBC Sports cable channel
+  carries the Monday night games. Hulu + Live TV and Sling listed no carriage as of
+  today, so they stay out.
+- **A game with no channel listed yet stays visible with "On my services" on.** ESPN
+  names NBA channels only days ahead, so the filter now treats "not announced" as
+  unknown, as the NFL viewer and the hub already did.
 
 - **Spoiler-free brackets no longer show how long a series ran.** Every series now shows
   its full row of hollow game dots, and the "Game 6" next-game line is hidden, since both

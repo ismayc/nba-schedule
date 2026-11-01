@@ -32,6 +32,18 @@ vi.mock('../src/data/schedule.js', async (importOriginal) => {
         state: 'CA',
         broadcast: ['Peacock'],
       },
+      // No channel listed yet: ESPN names NBA channels only days ahead, so this is
+      // "not announced", not "not on your services".
+      {
+        id: 'unannounced',
+        tip: '2025-10-23T01:00:00.000Z',
+        seasonType: 'regular',
+        home: 'DEN',
+        away: 'PHX',
+        venue: 'Ball Arena',
+        city: 'Denver',
+        state: 'CO',
+      },
     ],
   }
 })
@@ -111,12 +123,18 @@ describe('the Next game banner and the services filter', () => {
     expect(banner().textContent).toContain('Thunder')
   })
 
-  it('offers no game at all when nothing on the schedule is watchable', async () => {
-    // Prime Video carries neither NBA TV nor Peacock.
+  it('keeps a game with no channel listed yet, so it becomes the next game when the rest are unwatchable', async () => {
+    // Prime Video carries neither NBA TV nor Peacock, so both listed games drop out.
+    // The unannounced game stays: ESPN has not said where it airs, which is not the
+    // same as "not on your services" (the hub shipped that bug on the PL's first
+    // weekend back from a break).
     chooseServices(['prime'])
     await mount()
 
-    expect(document.querySelector('.nextgame.done')).not.toBeNull()
-    expect(screen.getByText(/see you next season/)).toBeInTheDocument()
+    expect(document.querySelector('.nextgame.done')).toBeNull()
+    expect(banner().textContent).toContain('Nuggets')
+    expect(banner().textContent).not.toContain('Thunder')
+    expect(banner().textContent).not.toContain('Lakers')
+    expect(document.querySelectorAll('.game').length).toBe(1)
   })
 })

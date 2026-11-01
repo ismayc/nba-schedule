@@ -26,6 +26,9 @@ const USA = 'USA Net'
 const ION = 'ION'
 const CNBC = 'CNBC'
 const NBATV = 'NBA TV'
+// NBC Sports' cable channel, relaunched November 17, 2025. ESPN tags the Monday
+// "Peacock NBA Monday" games only "NBCSN": 31 games in the 2026-27 schedule.
+const NBCSN = 'NBCSN'
 
 // Matching is case-insensitive because ESPN changes the case of a network's name
 // without notice (the NFL feed turned "FOX" into "Fox" on October 5, 2026, and exact
@@ -44,31 +47,37 @@ const carries = (...names) => {
 // badges and the picker. `kind` only labels the picker ('Streaming' vs 'Live TV').
 export const SERVICE_CATALOG = [
   { key: 'prime', label: 'Prime Video', kind: 'stream', match: carries('Prime Video') },
-  { key: 'peacock', label: 'Peacock', kind: 'stream', match: carries('Peacock') },
+  // Peacock also carries NBC and NBCSN: "All NBA games presented by NBC Sports will
+  // stream live on Peacock" (NBC Sports' 2026-27 schedule release, August 2026), but
+  // ESPN tags those games only "NBC" or "NBCSN". Without them a Peacock subscriber saw
+  // 100 of the season's games as on no service.
+  { key: 'peacock', label: 'Peacock', kind: 'stream', match: carries('Peacock', NBC, NBCSN) },
   { key: 'paramount', label: 'Paramount+', kind: 'stream', match: carries('Paramount+', CBS) },
   { key: 'disney', label: 'Disney+ / ESPN+', kind: 'stream', match: carries('Disney+', ESPN) },
   { key: 'nbatv', label: 'NBA TV', kind: 'stream', match: carries(NBATV) },
   { key: 'leaguepass', label: 'NBA League Pass', kind: 'stream', match: carries('NBA League Pass') },
-  { key: 'youtubetv', label: 'YouTube TV', kind: 'bundle', match: carries(ESPN, ABC, CBS, NBC, USA, ION, CNBC, NBATV) },
+  // NBCSN carriage (checked November 1, 2026): YouTube TV from launch, Fubo since its
+  // 2026 NBCUniversal deal, and cable (Xfinity). Hulu + Live TV and Sling had no
+  // carriage listed, so they stay out.
+  { key: 'youtubetv', label: 'YouTube TV', kind: 'bundle', match: carries(ESPN, ABC, CBS, NBC, NBCSN, USA, ION, CNBC, NBATV) },
   { key: 'hulu', label: 'Hulu + Live TV', kind: 'bundle', match: carries(ESPN, ABC, CBS, NBC, USA, CNBC, NBATV) },
-  { key: 'fubo', label: 'Fubo', kind: 'bundle', match: carries(ABC, CBS, NBC, USA, ION, CNBC) },
+  { key: 'fubo', label: 'Fubo', kind: 'bundle', match: carries(ABC, CBS, NBC, NBCSN, USA, ION, CNBC) },
   { key: 'sling', label: 'Sling TV', kind: 'bundle', match: carries(ESPN, USA, CNBC, NBATV) },
-  { key: 'cable', label: 'Cable / Satellite', kind: 'bundle', match: carries(ESPN, ABC, CBS, NBC, USA, ION, CNBC, NBATV) },
+  { key: 'cable', label: 'Cable / Satellite', kind: 'bundle', match: carries(ESPN, ABC, CBS, NBC, NBCSN, USA, ION, CNBC, NBATV) },
 ]
 
 // Every name the national catalog above already accounts for — a broadcast entry
-// outside this set lands in the local-channel picker. NBCSN is here even though no
-// service matches it directly (it's US-national cable, not a local feed).
+// outside this set lands in the local-channel picker.
 const NATIONAL_NAMES = nameSet([
   ESPN,
   ABC,
   CBS,
   NBC,
+  NBCSN,
   USA,
   ION,
   CNBC,
   NBATV,
-  'NBCSN',
   'Prime Video',
   'Peacock',
   'Paramount+',

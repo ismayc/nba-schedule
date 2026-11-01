@@ -9,6 +9,7 @@ import App from '../src/App.jsx'
 import { FollowProvider } from '../src/context/follow.jsx'
 import { GAMES } from '../src/data/schedule.js'
 import { ServicesProvider } from '../src/context/services.jsx'
+import { watchableServices } from '../src/utils/watch.js'
 
 // App is the wiring layer — polling, filters, URL state, and which view is on screen.
 // These are integration tests over that wiring, not over the views themselves.
@@ -130,7 +131,9 @@ describe('App', () => {
     })
 
     it('narrows the schedule to watchable games and remembers the choice', async () => {
-      localStorage.setItem('nba:services', JSON.stringify(['youtubetv', 'prime', 'peacock']))
+      // Prime Video alone: a bundle would carry nearly every listed channel and the
+      // toggle would then drop nothing from this slate.
+      localStorage.setItem('nba:services', JSON.stringify(['prime']))
       // Reveal past days (completed season) and scope to one team so the toggle acts on a
       // small slate rather than the whole ~1,200-game season.
       window.history.replaceState(null, '', '/?past=1&team=MIN')
@@ -147,10 +150,26 @@ describe('App', () => {
       const after = document.querySelectorAll('.game').length
       expect(after).toBeGreaterThan(0)
       expect(after).toBeLessThan(before)
-      // Every remaining card carries a watchable-service badge.
+      // What stays: every game on a chosen service, plus every game with no channel
+      // listed yet ("not announced" is not "can't watch"). Nothing else.
+      const chosen = ['prime']
+      const expected = GAMES.filter(
+        (g) =>
+          (g.home === 'MIN' || g.away === 'MIN') &&
+          (!g.broadcast?.length || watchableServices(g.broadcast, chosen).length > 0)
+      ).length
+      expect(after).toBe(expected)
+      // A card that lists a channel carries a watchable-service badge; one with no
+      // channel listed has nothing to badge.
+      let badged = 0
       for (const card of document.querySelectorAll('.game')) {
-        expect(within(card).getAllByText(/YouTube TV|Prime Video|Peacock/).length).toBeGreaterThan(0)
+        if (within(card).queryAllByText(/Prime Video/).length) badged++
       }
+      expect(badged).toBe(
+        GAMES.filter(
+          (g) => (g.home === 'MIN' || g.away === 'MIN') && watchableServices(g.broadcast, chosen).length > 0
+        ).length
+      )
     })
 
     it('restores the filter from localStorage on load', async () => {

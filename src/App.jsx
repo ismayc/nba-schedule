@@ -308,7 +308,9 @@ export default function App() {
       if (team && g.home !== team && g.away !== team) return false
       if (onlyFollowed && followedCount && !followed.has(g.home) && !followed.has(g.away)) return false
       // A no-op unless services are chosen — clearing them all shouldn't hide everything.
-      if (watchOnly && serviceCount && watchableServices(g.broadcast, services).length === 0)
+      // A game with no channel listed yet is kept: ESPN names NBA channels only days
+      // ahead, and "not announced" is not "can't watch".
+      if (watchOnly && serviceCount && g.broadcast?.length && watchableServices(g.broadcast, services).length === 0)
         return false
       // Empty = all phases; otherwise the game's phase must be one of the chosen chips.
       if (phases.length && !phases.includes(g.seasonType)) return false
