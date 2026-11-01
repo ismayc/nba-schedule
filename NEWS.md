@@ -15,6 +15,9 @@ data/source updates, deployment). Newest day on top.
 - **A game with no channel listed yet stays visible with "On my services" on.** ESPN
   names NBA channels only days ahead, so the filter now treats "not announced" as
   unknown, as the NFL viewer and the hub already did.
+- **Fubo now counts ESPN games.** Fubo has carried ESPN in every plan since 2020, but
+  the Fubo matcher had left it out since the app was scaffolded, so a Fubo subscriber
+  saw every ESPN game as on no service. Found by the new weekly TV-listings scan.
 
 - **Spoiler-free brackets no longer show how long a series ran.** Every series now shows
   its full row of hollow game dots, and the "Game 6" next-game line is hidden, since both
