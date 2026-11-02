@@ -463,7 +463,7 @@ export const GAMES = [
   {"id":"401910218","tip":"2026-12-30T03:00:00.000Z","seasonType":"regular","home":"SAC","away":"PHI","venue":"Golden 1 Center","city":"Sacramento","state":"CA"},
   {"id":"401910219","tip":"2026-12-30T03:30:00.000Z","seasonType":"regular","home":"LAL","away":"HOU","venue":"crypto.com Arena","city":"Los Angeles","state":"CA","broadcast":["NBC","Spectrum Sports Net","Spectrum Sports Net +"]},
   {"id":"401910220","tip":"2026-12-31T00:00:00.000Z","seasonType":"regular","home":"DET","away":"NO","venue":"Little Caesars Arena","city":"Detroit","state":"MI","broadcast":["GCSEN","Pelicans.com"]},
-  {"id":"401910221","tip":"2026-12-31T00:30:00.000Z","seasonType":"regular","home":"TOR","away":"WSH","venue":"Scotiabank Arena","city":"Toronto","state":"ON","broadcast":["NBA TV"]},
+  {"id":"401910221","tip":"2026-12-31T00:30:00.000Z","seasonType":"regular","home":"TOR","away":"WSH","venue":"Scotiabank Arena","city":"Toronto","state":"ON","broadcast":["NBA TV","MNMT"]},
   {"id":"401910222","tip":"2026-12-31T01:00:00.000Z","seasonType":"regular","home":"CHI","away":"BOS","venue":"United Center","city":"Chicago","state":"IL"},
   {"id":"401910223","tip":"2026-12-31T02:00:00.000Z","seasonType":"regular","home":"PHX","away":"PHI","venue":"Mortgage Matchup Center","city":"Phoenix","state":"AZ","broadcast":["Suns Live","Arizona's Family 3TV"]},
   {"id":"401910224","tip":"2026-12-31T02:00:00.000Z","seasonType":"regular","home":"UTAH","away":"NY","venue":"Delta Center","city":"Salt Lake City","state":"UT","broadcast":["KJZZ-TV","Jazz+"]},
