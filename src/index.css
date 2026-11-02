@@ -1115,7 +1115,7 @@ select:hover,
    runs the full height. Ten rows read as one board rather than ten boxes. */
 .game {
   display: grid;
-  grid-template-columns: 96px 1fr;
+  grid-template-columns: 126px 1fr;
   gap: 16px;
   align-items: center;
   background: transparent;
@@ -4107,4 +4107,52 @@ button.drill-row:hover {
   .bx-scroll:has(.boxscore:not(.bx-all)) {
     overflow: visible;
   }
+}
+
+/* Phone leaders: the name wraps and the bar gives up its minimum, or a long name pushes
+   the value column off the screen and the whole page scrolls sideways (November 2, 2026). */
+@media (max-width: 460px) {
+  .lead-name {
+    white-space: normal;
+  }
+  .lead-bar {
+    width: 30%;
+    min-width: 28px;
+  }
+}
+@media (max-width: 460px) {
+  /* A button centers its text, which shows once a long name takes two lines. */
+  .lead-player {
+    text-align: left;
+  }
+}
+
+/* Fit all four round pills on a 390px phone, so the last one is not cut off at the edge.
+   Narrower phones still scroll the row. */
+@media (max-width: 460px) {
+  .bx-round-btn {
+    flex: 1 1 auto;
+    padding: 9px 6px;
+    font-size: 0.76rem;
+  }
+}
+
+/* Team panel roster: minmax(0, ...) lets a row stay inside the panel on a small phone. */
+.tp-roster {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 360px) {
+  .tp-player {
+    flex-wrap: wrap;
+  }
+}
+
+/* Tablet tree: keep the conferences at full width and scroll, as the NFL bracket does.
+   Allowed to shrink, the columns printed over each other between 721px and about 1100px,
+   above the point where phones switch to the round list (November 2, 2026). */
+.bx {
+  justify-content: safe center;
+}
+.bx-conf {
+  flex: 0 0 auto;
 }

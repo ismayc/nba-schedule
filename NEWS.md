@@ -4,6 +4,11 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-11-02
+
+- **The playoff tree no longer piles up on a tablet.** Between 721px and about 1100px its columns printed over each other, on both the Playoffs and History tabs. It now keeps its width and scrolls. All four round pills also fit a 390px phone.
+- **No more sideways page scroll on a phone.** The leaders tables and team panel rosters now stay inside the screen. The schedule's time column also fits times like 11:00 AM.
+
 ## 2026-11-01
 
 - **Peacock now counts NBC and NBCSN games as watchable.** NBC Sports says every NBA
