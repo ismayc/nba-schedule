@@ -4,6 +4,10 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-11-05
+
+- **Channels ESPN has not listed yet now come from NBA.com.** An upcoming game with no ESPN listing shows the league's channels in place of "Channel TBA". ESPN stays the source of record, so service badges and "On my services" still use only ESPN's list, and an ESPN listing replaces these channels as soon as it appears. If the league feed cannot be read, the last good channels stay.
+
 ## 2026-11-02
 
 - **An unannounced channel now says "Channel TBA".** ESPN lists no channel until a few days before a game, and the card and game detail used to show nothing. Only games still to come get the tag.

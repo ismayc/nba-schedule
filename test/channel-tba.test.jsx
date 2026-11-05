@@ -47,6 +47,29 @@ describe('Channel TBA', () => {
     expect(screen.queryByText('Channel TBA')).toBeNull()
   })
 
+  // The league feed fills what ESPN has not listed. Its names stay out of `broadcast`, so the
+  // service badges and "On my services" keep working from ESPN's list alone.
+  it('shows league-listed channels in place of the tag, capped on the card', () => {
+    const leagueTv = ['Altitude/Altitude+', 'TSN/TSN+', 'Three', 'Four']
+    const g = game({ leagueTv })
+    render(<GameCard game={g} tz={TZ} />)
+    expect(screen.queryByText('Channel TBA')).toBeNull()
+    expect(screen.getByText('Altitude/Altitude+ · TSN/TSN+ · Three')).toHaveAttribute('title', expect.stringMatching(/NBA\.com/))
+    cleanup()
+    render(<GameDetail game={g} games={[g]} tz={TZ} onClose={() => {}} />)
+    expect(screen.queryByText('Channel TBA')).toBeNull()
+    expect(screen.getByText('Altitude/Altitude+ · TSN/TSN+ · Three · Four')).toBeInTheDocument()
+  })
+
+  it('prefers ESPN once it lists a channel', () => {
+    const g = game({ broadcast: ['ESPN'], leagueTv: ['Altitude/Altitude+'] })
+    render(<GameCard game={g} tz={TZ} />)
+    expect(screen.queryByText('Altitude/Altitude+')).toBeNull()
+    cleanup()
+    render(<GameDetail game={g} games={[g]} tz={TZ} onClose={() => {}} />)
+    expect(screen.queryByText('Altitude/Altitude+')).toBeNull()
+  })
+
   it('treats an empty channel list like a missing one', () => {
     render(<GameCard game={game({ broadcast: [] })} tz={TZ} />)
     expect(screen.getByText('Channel TBA')).toBeInTheDocument()

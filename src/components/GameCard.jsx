@@ -109,6 +109,11 @@ function Meta({ game, watch, lead, extra, channelTba }) {
         <span key={m}>{m}</span>
       ))}
       {channelTba && <span className="net-tba">Channel TBA</span>}
+      {!game.broadcast?.length && game.leagueTv?.length > 0 && (
+        <span title="Listed by NBA.com. ESPN has not listed a channel yet.">
+          {game.leagueTv.slice(0, 3).join(' · ')}
+        </span>
+      )}
       {watch.length > 0 && (
         <span className="watch" aria-label={`Watch on ${watch.map((s) => s.label).join(', ')}`}>
           <span className="watch-tv" aria-hidden="true">
@@ -186,7 +191,7 @@ export default function GameCard({ game, tz, hideScores, onOpen }) {
       <Meta
         game={game}
         watch={watch}
-        channelTba={state === 'upcoming' && !game.broadcast?.length}
+        channelTba={state === 'upcoming' && !game.broadcast?.length && !game.leagueTv?.length}
         lead={game.note && <span className="note">{game.note}</span>}
         extra={
           state === 'upcoming' &&

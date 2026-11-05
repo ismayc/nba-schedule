@@ -755,6 +755,10 @@ export default function App() {
           <a href="https://www.espn.com/nba/" target="_blank" rel="noopener noreferrer">
             ESPN
           </a>
+          . Channels ESPN has not listed yet via{' '}
+          <a href="https://www.nba.com/schedule" target="_blank" rel="noopener noreferrer">
+            NBA.com
+          </a>
           .
         </p>
         <div className="foot-row">

@@ -267,10 +267,16 @@ export default function GameDetail({ game, games, tz, hideScores, onClose, onPic
               </dd>
             </div>
           )}
-          {state === 'upcoming' && !game.broadcast?.length && (
+          {state === 'upcoming' && !game.broadcast?.length && !game.leagueTv?.length && (
             <div>
               <dt>Watch</dt>
               <dd><span className="net-tba">Channel TBA</span></dd>
+            </div>
+          )}
+          {!game.broadcast?.length && game.leagueTv?.length > 0 && (
+            <div>
+              <dt>Watch</dt>
+              <dd title="Listed by NBA.com. ESPN has not listed a channel yet.">{game.leagueTv.join(' · ')}</dd>
             </div>
           )}
           {game.broadcast?.length && (

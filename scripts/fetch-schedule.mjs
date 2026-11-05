@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONCURRENCY, mapLimit, fetchRetry, getJson } from './lib/fetch.mjs'
 import { createDataWriter } from './lib/stamp.mjs'
+import { applyLeagueChannels, committedLeagueTv, fetchLeagueChannels } from './lib/league-channels.mjs'
 import { SEASON as COMMITTED_SEASON, TEAMS as COMMITTED_TEAMS } from '../src/data/teams.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -762,6 +763,12 @@ async function main() {
   // Must run before the schedule is written — it enriches `games` in place.
   const restored = await keepKnownBroadcasts(games, 'src/data/schedule.js')
   if (restored) console.log(`  kept ${restored} broadcast listing(s) the feed dropped`)
+
+  // Channels ESPN has not listed yet, from the league's own feed. Optional: see the module.
+  const committedSchedule = await readFile(join(ROOT, 'src/data/schedule.js'), 'utf8').catch(() => '')
+  const leagueFeed = await fetchLeagueChannels()
+  const leagueFilled = applyLeagueChannels(games, leagueFeed, committedLeagueTv(committedSchedule))
+  console.log(`  ${leagueFilled} game(s) with league-listed channels (feed ${leagueFeed ? 'read' : 'unavailable'})`)
 
   console.log('Fetching line scores…')
   console.log(`  ${await enrichWithBoxScores(games)} games with quarter breakdowns`)
