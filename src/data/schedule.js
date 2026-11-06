@@ -477,7 +477,7 @@ export const GAMES = [
   {"id":"401910232","tip":"2027-01-01T01:00:00.000Z","seasonType":"regular","home":"NO","away":"LAL","venue":"Smoothie King Center","city":"New Orleans","state":"LA","broadcast":["Spectrum Sports Net","Spectrum Sports Net +","GCSEN","Pelicans.com"]},
   {"id":"401910233","tip":"2027-01-01T01:00:00.000Z","seasonType":"regular","home":"OKC","away":"MIA","venue":"Paycom Center","city":"Oklahoma City","state":"OK","broadcast":["KSBI","Thunder App"]},
   {"id":"401910234","tip":"2027-01-01T02:00:00.000Z","seasonType":"regular","home":"PHX","away":"NY","venue":"Mortgage Matchup Center","city":"Phoenix","state":"AZ","broadcast":["NBA TV","Arizona's Family 3TV","Suns Live"]},
-  {"id":"401910235","tip":"2027-01-01T22:00:00.000Z","seasonType":"regular","home":"WSH","away":"SA","venue":"Capital One Arena","city":"Washington","state":"DC","broadcast":["NBA TV","DAZN SAS"]},
+  {"id":"401910235","tip":"2027-01-01T22:00:00.000Z","seasonType":"regular","home":"WSH","away":"SA","venue":"Capital One Arena","city":"Washington","state":"DC","broadcast":["NBA TV","DAZN SAS","MNMT"]},
   {"id":"401910236","tip":"2027-01-02T00:30:00.000Z","seasonType":"regular","home":"DET","away":"ORL","venue":"Little Caesars Arena","city":"Detroit","state":"MI","broadcast":["NBA TV"]},
   {"id":"401910237","tip":"2027-01-02T00:30:00.000Z","seasonType":"regular","home":"TOR","away":"LAC","venue":"Scotiabank Arena","city":"Toronto","state":"ON","broadcast":["ClipperVision"]},
   {"id":"401910238","tip":"2027-01-02T01:00:00.000Z","seasonType":"regular","home":"MIL","away":"PHI","venue":"Fiserv Forum","city":"Milwaukee","state":"WI","broadcast":["MyMi","Bucks App"]},
