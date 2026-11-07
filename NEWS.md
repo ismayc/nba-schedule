@@ -4,6 +4,10 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-11-07
+
+- **The README is up to date again.** It now says the refresh commits to `main` instead of opening a PR, that Netlify builds through its own GitHub integration, and that leaders cover 9 categories, and it covers spoiler-free mode, Channel TBA, and NBA.com channels.
+
 ## 2026-11-05
 
 - **Channels ESPN has not listed yet now come from NBA.com.** An upcoming game with no ESPN listing shows the league's channels in place of "Channel TBA". ESPN stays the source of record, so service badges and "On my services" still use only ESPN's list, and an ESPN listing replaces these channels as soon as it appears. If the league feed cannot be read, the last good channels stay.

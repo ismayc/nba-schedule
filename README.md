@@ -25,32 +25,36 @@ snapshot of the season.
 | 📊 **Regular Season** | Both conference tables side by side, with the playoff cut and the play-in band marked. W/L, PCT, GB, home/road splits, last-10, streak, net rating. |
 | 🏆 **Playoffs** | Two conference brackets (East and West) into the Finals, where each slot is a best-of-seven series. Projected from current seeding until the real field is set. Below it, both **Play-In Tournaments** — every game, with the seed it settled and who it knocked out. |
 | 🎯 **Radial** | The same brackets as concentric rings — one wheel per conference, seeds outside and the conference champion in the middle — flanking the Finals. |
-| 📈 **Stats** | Season averages, league leaders across 8 categories, scoring margin, and the playoff race — by conference — with magic numbers. |
+| 📈 **Stats** | Season averages, league leaders across 9 categories, scoring margin, and the playoff race — by conference — with magic numbers. |
 | 📜 **History** | Every completed season back to **2020-21**, in four modes: one season in full (final standings, play-in ladder, bracket); that season's **stats** (totals, the same nine leaderboards as the live view, scoring margin); every team that reached the playoffs through the play-in and what it did with the seed; and every champion. |
 
 **Star a team** from any game card, standings row, or team panel to highlight it
 across every view, filter the schedule to "My teams", and scope live alerts to it.
 Clicking any team opens a **team panel** — splits, form, leading scorers, and what's
 next. Each game card also flags **where to watch** — a 📺 badge naming the streaming
-services that carry it (YouTube TV, Prime Video, Peacock). Plus: light/dark themes,
-spoiler-free mode, shareable URLs, live alerts for notable moments, a game-detail modal
+services and live-TV bundles that carry it (YouTube TV, Fubo, Peacock, Prime Video, and
+more). An upcoming game with no channel yet shows "Channel TBA". Plus: light/dark themes,
+spoiler-free mode (hides scores, overtime, bracket results, and series length), shareable URLs, live alerts for notable moments, a game-detail modal
 with a quarter line score, starting lineups, and season series, an auto-updating
 `webcal://` **calendar subscription** (plus one-time `.ics` download, whole season or your
 teams), and installable-PWA support.
 
 ## Data
 
-Everything comes from ESPN's public, keyless, CORS-open feeds.
+Everything comes from ESPN's public, keyless, CORS-open feeds. Channels ESPN has not
+listed yet come from NBA.com's league feed.
 
 **The season is committed, not fetched.** `scripts/fetch-schedule.mjs` generates
-`src/data/schedule.js`, `src/data/teams.js`, and `src/data/leaders.js`, and mirrors team
+`src/data/schedule.js`, `src/data/teams.js`, `src/data/leaders.js`, and `src/data/meta.js`
+(which feeds the footer's "Data as of" time), and mirrors team
 logos into `public/logos/`. The app therefore renders a complete season — including
 every result so far — with **zero requests on load**. At runtime, ESPN's scoreboard is
 polled only to overlay games that are live or just finished (every 30s while a game is
 in progress, 2 min otherwise, never once the season ends).
 
 That snapshot is refreshed twice daily by `.github/workflows/refresh-data.yml`, which
-regenerates the data, runs the test suite against it, and opens a PR. Standings are
+regenerates the data, runs the test suite against it, and commits to `main` if it passes.
+Standings are
 *derived* from the committed scores, so a bad refresh surfaces as a failing test rather
 than a quietly wrong table.
 
@@ -104,7 +108,8 @@ status stays in the tooltip.
 
 And it rules out goal-style alerts. One notification per basket would fire ~50 times a
 game. The 🔔 toggle instead surfaces the moments that change how a game *feels* —
-tipoff, a lead change, a one-possession fourth quarter, and the final — detected by
+tipoff, a lead change, a one-possession fourth quarter, and the final (spoiler-free mode
+keeps only the tipoff alert) — detected by
 diffing poll snapshots, so no play-by-play feed is needed. A close fourth quarter
 alerts once on entering that state, not every 30 seconds while it holds, and a
 buzzer-beater that both flips the lead and ends the game is reported as one moment
@@ -239,19 +244,17 @@ a subpath (GitHub Pages `/nba-schedule/`) with no separate build.
 
 - **GitHub Pages** deploys automatically from `ci.yml` on every push to `main`, gated on
   tests passing.
-- **Netlify** deploys from the same workflow, but only once `NETLIFY_AUTH_TOKEN` is set
-  as a repository secret (`NETLIFY_SITE_ID` is already stored as a repo variable). Until
-  then that step is skipped and Netlify can be updated with
-  `npx netlify-cli deploy --prod --dir dist`. The `webcal://` calendar feed is a Netlify
-  function, so it only resolves on the Netlify host.
+- **Netlify** deploys through its own GitHub integration, building from `netlify.toml` on
+  each push (there is no Netlify job in `ci.yml`). The `webcal://` calendar feed is a
+  Netlify function, so it only resolves on the Netlify host.
 
 ## Credits
 
-Created by [Chester Ismay](https://chester.rbind.io). Source on
+Created by [Chester Ismay](https://chesterismay.com). Source on
 [GitHub](https://github.com/ismayc/nba-schedule).
 
 Unofficial fan project. Not affiliated with, endorsed by, or sponsored by the NBA.
 Team names and logos are trademarks of their respective owners. Schedule, results, and
-player data via ESPN's public feeds.
+player data via ESPN's public feeds. Channels ESPN has not listed yet come from NBA.com.
 
 MIT licensed.
