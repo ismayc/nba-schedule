@@ -58,6 +58,11 @@ Standings are
 *derived* from the committed scores, so a bad refresh surfaces as a failing test rather
 than a quietly wrong table.
 
+Two more workflows watch that pipeline. `data-freshness.yml` runs every 6 hours and goes
+red, with an issue, when no refresh has reached ESPN recently. `new-season-watch.yml` runs
+daily, and when ESPN posts next season's schedule it opens an issue and drafts the
+rollover PR, because a rollover is a decision and not an automatic step.
+
 > **NBA seasons span two calendar years, and ESPN keys them by the *ending* year.**
 > `--season 2026` is the **2025-26** season; `--season 2027` is 2026-27. The committed
 > data is the most recent complete season; swap seasons with a single
@@ -149,11 +154,11 @@ Each season commits four things:
 - its **season totals** — points, home-win rate, overtimes, one-possession finishes, plus
   the five closest and five highest-scoring nights;
 - its **leader boards** for all nine categories, as `{id, rank, value}` against a deduped
-  per-season player table (~63 players) carrying each one's full stat line.
+  per-season player table (56 to 63 players) carrying each one's full stat line.
 
-The regular season's ~1,230 games are summarised into those totals and standings rather
-than committed, which is why six extra seasons cost ~320KB instead of ~5MB (bundle
-1.10MB → 1.40MB, 224KB → 259KB gzipped).
+The regular season's ~1,230 games are summarized into those totals and standings rather
+than committed, which is why six extra seasons cost ~340KB instead of ~5MB (the first
+five seasons took the bundle from 1.10MB to 1.40MB, and from 224KB to 259KB gzipped).
 
 Nothing derived is committed. The bracket and the ladder are rebuilt at runtime by the
 same `buildBracket()` / `buildPlayIn()` the current season uses; the leader boards were
