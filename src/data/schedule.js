@@ -210,7 +210,7 @@ export const GAMES = [
   {"id":"401910002","tip":"2026-11-18T00:30:00.000Z","seasonType":"regular","home":"TOR","away":"NY","venue":"Scotiabank Arena","city":"Toronto","state":"ON","leagueTv":["SN/SN+","MSG / DAZN"]},
   {"id":"401910003","tip":"2026-11-18T01:00:00.000Z","seasonType":"regular","home":"MIN","away":"POR","venue":"Target Center","city":"Minneapolis","state":"MN","broadcast":["BlazerVision","DAZN MIN"]},
   {"id":"401910004","tip":"2026-11-18T01:00:00.000Z","seasonType":"regular","home":"SA","away":"DET","venue":"Frost Bank Center","city":"San Antonio","state":"TX","broadcast":["NBC"]},
-  {"id":"401910006","tip":"2026-11-18T03:30:00.000Z","seasonType":"regular","home":"LAC","away":"UTAH","venue":"Intuit Dome","city":"Inglewood","state":"CA","broadcast":["ClipperVision","KJZZ-TV","Jazz+","NBC"]},
+  {"id":"401910006","tip":"2026-11-18T03:30:00.000Z","seasonType":"regular","home":"LAC","away":"UTAH","venue":"Intuit Dome","city":"Inglewood","state":"CA","broadcast":["ClipperVision","KJZZ-TV","Jazz+"]},
   {"id":"401910005","tip":"2026-11-18T04:00:00.000Z","seasonType":"regular","home":"LAL","away":"CHA","venue":"crypto.com Arena","city":"Los Angeles","state":"CA","broadcast":["Spectrum Sports Net","Spectrum Sports Net +","NBC"]},
   {"id":"401910007","tip":"2026-11-19T00:00:00.000Z","seasonType":"regular","home":"CLE","away":"MEM","venue":"Rocket Arena","city":"Cleveland","state":"OH","broadcast":["DAZN CLE","DAZN MEM"]},
   {"id":"401910008","tip":"2026-11-19T00:00:00.000Z","seasonType":"regular","home":"IND","away":"HOU","venue":"Gainbridge Fieldhouse","city":"Indianapolis","state":"IN","broadcast":["DAZN IND"]},
