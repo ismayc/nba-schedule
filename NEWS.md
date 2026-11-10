@@ -4,6 +4,10 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-11-10
+
+- **A franchise that leaves ESPN's current team list keeps its season.** On November 1, 2026, ESPN took the WNBA's Connecticut Sun off its current team list while the 2026 season still held it, and the WNBA viewer's refresh failed for 9 days. The same team filter is here: a team in the season's conferences that is not on the current list now comes from its own team record, and team schedules are fetched by team id, because ESPN answers 400 for an inactive team's abbreviation. No data changes today.
+
 ## 2026-11-08
 
 - **A refresh during a live overtime no longer marks overtime on an unfinished game.** Overtime was set from the period number while the score waited for the final, so a refresh that ran during an overtime game committed an overtime mark with no score. Overtime now waits for the final too. Found when the NFL viewer's refresh gate failed on a live overtime game on November 8, 2026.
