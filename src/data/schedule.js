@@ -534,7 +534,7 @@ export const GAMES = [
   {"id":"401910289","tip":"2027-01-08T03:00:00.000Z","seasonType":"regular","home":"LAL","away":"BOS","venue":"crypto.com Arena","city":"Los Angeles","state":"CA","broadcast":["Prime Video","Spectrum Sports Net","Spectrum Sports Net +"]},
   {"id":"401910290","tip":"2027-01-08T03:00:00.000Z","seasonType":"regular","home":"SAC","away":"CHI","venue":"Golden 1 Center","city":"Sacramento","state":"CA","leagueTv":["NBCSCA/PCK-SAC","CHSN/CHSN App"]},
   {"id":"401910291","tip":"2027-01-09T00:00:00.000Z","seasonType":"regular","home":"PHI","away":"MIA","venue":"Xfinity Mobile Arena","city":"Philadelphia","state":"PA","broadcast":["ESPN"]},
-  {"id":"401910292","tip":"2027-01-09T00:00:00.000Z","seasonType":"regular","home":"WSH","away":"MIN","venue":"Capital One Arena","city":"Washington","state":"DC","broadcast":["DAZN MIN"]},
+  {"id":"401910292","tip":"2027-01-09T00:00:00.000Z","seasonType":"regular","home":"WSH","away":"MIN","venue":"Capital One Arena","city":"Washington","state":"DC","broadcast":["DAZN MIN","MNMT"]},
   {"id":"401910293","tip":"2027-01-09T00:30:00.000Z","seasonType":"regular","home":"TOR","away":"UTAH","venue":"Scotiabank Arena","city":"Toronto","state":"ON","broadcast":["KJZZ-TV","Jazz+"]},
   {"id":"401910294","tip":"2027-01-09T01:00:00.000Z","seasonType":"regular","home":"NO","away":"ORL","venue":"Smoothie King Center","city":"New Orleans","state":"LA","broadcast":["GCSEN","Pelicans.com"]},
   {"id":"401910295","tip":"2027-01-09T01:00:00.000Z","seasonType":"regular","home":"SA","away":"MEM","venue":"Frost Bank Center","city":"San Antonio","state":"TX","broadcast":["DAZN SAS","DAZN MEM"]},
