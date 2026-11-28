@@ -275,6 +275,14 @@ describe('isUpNext — the next unplayed game for either team', () => {
     const otherTeams = g('o', '2026-11-03T00:00:00Z', 'LAL', 'NYK')
     expect(isUpNext(target, [playedEarlier, voidEarlier, otherTeams, target])).toBe(true)
   })
+
+  it('is true for a game in progress, whose live score does not mark it played', () => {
+    const live = g('n', '2026-11-28T00:00:00Z', 'NY', 'MIA', { score: [90, 88], live: true })
+    const later = g('r', '2026-12-13T01:30:00Z', 'MIA', 'NY')
+    expect(isUpNext(live, [live, later])).toBe(true)
+    // The live game is still each team's next, so the later one is not.
+    expect(isUpNext(later, [live, later])).toBe(false)
+  })
 })
 
 // ── urlState.js remaining branch ──────────────────────────────────────────

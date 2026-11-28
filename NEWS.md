@@ -4,6 +4,10 @@ A dated changelog for The NBA Schedule. Each heading is a calendar
 day; bullet points capture every change made that day (features, fixes,
 data/source updates, deployment). Newest day on top.
 
+## 2026-11-27
+
+- **The injury report stays on the Matchup tab while a game is live.** The report showed only for a team's next unplayed game, and a live score counted as played, so the report went away at tip-off. A live game now still counts as next; a final game still hides the report. Found on November 27, 2026, when the Knicks and Heat game hid its injury report (Knicks: McBride, Anunoby, Clarkson, and Drummond out) in the 4th quarter.
+
 ## 2026-11-10
 
 - **A franchise that leaves ESPN's current team list keeps its season.** On November 1, 2026, ESPN took the WNBA's Connecticut Sun off its current team list while the 2026 season still held it, and the WNBA viewer's refresh failed for 9 days. The same team filter is here: a team in the season's conferences that is not on the current list now comes from its own team record, and team schedules are fetched by team id, because ESPN answers 400 for an inactive team's abbreviation. No data changes today.

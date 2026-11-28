@@ -151,15 +151,19 @@ export function whenBucket(game, now = Date.now()) {
 // Is this the next unplayed game for either of its two teams? The injury report is a
 // snapshot of CURRENT league injuries, so it only makes sense for a team's next matchup —
 // not a finished game (whose "injuries" would be today's, not that day's) and not one
-// several games out (the report will have changed by then). Pure: keyed on which games are
-// played (have a score / are void) and tip order, not on the wall clock.
+// several games out (the report will have changed by then). A game in progress still
+// counts: it carries a live score, but today's report is the one that applies to it.
+// Pure: keyed on which games are played (a score that is not live, or void) and tip
+// order, not on the wall clock.
+const isDone = (g) => (g.score && !g.live) || g.postponed || g.canceled
+
 export function isUpNext(game, games) {
-  if (!game || game.score || game.postponed || game.canceled) return false
+  if (!game || isDone(game)) return false
   const start = new Date(game.tip).getTime()
   const isTeamsNext = (team) => {
     let earliest = Infinity
     for (const g of games) {
-      if (g.score || g.postponed || g.canceled) continue
+      if (isDone(g)) continue
       if (g.home !== team && g.away !== team) continue
       earliest = Math.min(earliest, new Date(g.tip).getTime())
     }
